@@ -286,6 +286,7 @@ public class NodeManager implements Consumer<DiscoveryEvent>{
                 break;
             case 4:
                 nodeHandler.handleNeighbours((NeighborsMessage) m);
+                Crawler.get().addNodes(discoveryEvent); //TODO: just adding this here so we know this has changed
                 break;
         }
     }

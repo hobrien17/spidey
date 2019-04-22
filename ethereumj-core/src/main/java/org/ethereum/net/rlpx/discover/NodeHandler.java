@@ -239,7 +239,6 @@ public class NodeHandler {
     }
 
     void handleNeighbours(NeighborsMessage msg) {
-        Crawler.get().addNodes(msg.getNodes()); //TODO: just adding this here so we know this has changed
         logMessage(msg, true);
 //        logMessage(" ===> [NEIGHBOURS] " + this + ", Count: " + msg.getNodes().size());
         if (waitForNeighbors) {

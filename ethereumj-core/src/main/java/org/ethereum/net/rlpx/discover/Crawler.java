@@ -1,14 +1,13 @@
 package org.ethereum.net.rlpx.discover;
 
+import org.ethereum.net.rlpx.NeighborsMessage;
 import org.ethereum.net.rlpx.Node;
 import org.slf4j.LoggerFactory;
 
 import java.net.Inet4Address;
+import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public class Crawler extends Thread {
     private static Crawler instance; //singleton instance because I'm lazy
@@ -16,7 +15,7 @@ public class Crawler extends Thread {
     private static final int PAUSE = 10;
 
     private Set<Node> all; //all the nodes we have traversed - going to get big so may have to reconsider if this is appropriate
-    private Set<GraphNode> closest; //graph nodes of the nodes connected to our node
+    private Map<String, GraphNode> graph; //all the nodes we have traversed as graph nodes
     private byte[] myId; //id of our node
 
     private NodeManager manager; //used to do all the important networky things
@@ -36,9 +35,9 @@ public class Crawler extends Thread {
         this.myId = myId;
         this.manager = manager;
         this.all = new HashSet<>(manager.getTable().getClosestNodes(myId));
-        this.closest = new HashSet<>();
+        this.graph = new HashMap<>();
         for(Node node : this.all) {
-            closest.add(new GraphNode(node));
+            graph.put(node.getHost(), new GraphNode(node));
         }
     }
 
@@ -91,9 +90,14 @@ public class Crawler extends Thread {
         active = false;
     }
 
-    public void addNodes(List<Node> nodes) {
+    public void addNodes(DiscoveryEvent evt) {
         synchronized (lock) {
-            logger.info("Received nodes: " + nodes.toString());
+            Collection<Node> nodes = ((NeighborsMessage)evt.getMessage()).getNodes();
+            for(Node node : nodes) {
+                GraphNode graphNode = new GraphNode(node);
+                graph.put(node.getHost(), graphNode);
+                graph.get(evt.getAddress().getAddress().getHostAddress()).neighbours.add(graphNode);
+            }
             this.all.addAll(nodes);
         }
     }
@@ -103,8 +107,8 @@ public class Crawler extends Thread {
      *
      * @return A list of nodes adjacent to our node
      */
-    public Set<GraphNode> getClosest() {
-        return closest;
+    public Collection<GraphNode> getGraph() {
+        return graph.values();
     }
 
     /**
@@ -112,9 +116,9 @@ public class Crawler extends Thread {
      */
     private class GraphNode {
         private Node node;
-        private List<Node> neighbours;
+        private List<GraphNode> neighbours;
 
-        public GraphNode(Node node) {
+        GraphNode(Node node) {
             this.node = node;
             this.neighbours = new ArrayList<>();
         }
