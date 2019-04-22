@@ -111,6 +111,10 @@ public class NodeManager implements Consumer<DiscoveryEvent>{
         for (Node node : config.peerActive()) {
             getNodeHandler(node).getNodeStatistics().setPredefined(true);
         }
+
+        //TODO: marker so we can find this code later
+        Crawler.setup(this, config.nodeId());
+        Crawler.get().start();
     }
 
     public ScheduledExecutorService getPongTimer() {

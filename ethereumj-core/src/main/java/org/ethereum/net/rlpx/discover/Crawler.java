@@ -1,25 +1,30 @@
 package org.ethereum.net.rlpx.discover;
 
 import org.ethereum.net.rlpx.Node;
+import org.slf4j.LoggerFactory;
 
 import java.net.Inet4Address;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class Crawler extends Thread {
     private static Crawler instance; //singleton instance because I'm lazy
 
-    private static final int PAUSE = 5;
+    private static final int PAUSE = 10;
 
-    private List<Node> all; //all the nodes we have traversed - going to get big so may have to reconsider if this is appropriate
-    private List<GraphNode> closest; //graph nodes of the nodes connected to our node
+    private Set<Node> all; //all the nodes we have traversed - going to get big so may have to reconsider if this is appropriate
+    private Set<GraphNode> closest; //graph nodes of the nodes connected to our node
     private byte[] myId; //id of our node
-    private boolean active; //set this to false when we want to stop traversal
 
     private NodeManager manager; //used to do all the important networky things
 
-    final Object allLock = new Object(); //thread safety is important
+    private boolean active; //set this to false when we want to stop traversal
+    private final Object lock = new Object(); //thread safety is important
+
+    static final org.slf4j.Logger logger = LoggerFactory.getLogger("discover");
 
     /**
      * Constructs a new Crawler object
@@ -30,8 +35,8 @@ public class Crawler extends Thread {
     public Crawler(NodeManager manager, byte[] myId) {
         this.myId = myId;
         this.manager = manager;
-        this.all = new ArrayList<>(manager.getTable().getClosestNodes(myId));
-        this.closest = new ArrayList<>();
+        this.all = new HashSet<>(manager.getTable().getClosestNodes(myId));
+        this.closest = new HashSet<>();
         for(Node node : this.all) {
             closest.add(new GraphNode(node));
         }
@@ -58,7 +63,7 @@ public class Crawler extends Thread {
 
     @Override
     public void run() {
-        //TODO: do all the thread things
+        crawl();
     }
 
     /**
@@ -68,17 +73,28 @@ public class Crawler extends Thread {
         active = true;
 
         while(active) {
-            synchronized (allLock) {
+            synchronized (lock) {
                 for (Node node : all) {
                     manager.getNodeHandler(node).sendFindNode(myId);
                 }
-            }
 
-            try {
-                Thread.sleep(PAUSE); //take a breather to try to avoid overloading the network
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+                try {
+                    Thread.sleep(PAUSE); //take a breather to try to avoid overloading the network
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
+        }
+    }
+
+    public void stopCrawl() {
+        active = false;
+    }
+
+    public void addNodes(List<Node> nodes) {
+        synchronized (lock) {
+            logger.info("Received nodes: " + nodes.toString());
+            this.all.addAll(nodes);
         }
     }
 
@@ -87,7 +103,7 @@ public class Crawler extends Thread {
      *
      * @return A list of nodes adjacent to our node
      */
-    public List<GraphNode> getClosest() {
+    public Set<GraphNode> getClosest() {
         return closest;
     }
 
