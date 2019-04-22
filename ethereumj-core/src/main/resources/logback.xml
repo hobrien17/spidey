@@ -55,14 +55,14 @@
     <logger name="execute" level="ERROR"/>
     <logger name="VM" level="ERROR"/>
     <logger name="pending" level="DEBUG"/>
-    <logger name="sync" level="TRACE"/>
+    <logger name="sync" level="OFF"/>
     <logger name="wire" level="ERROR"/>
     <logger name="db" level="DEBUG"/>
     <logger name="general" level="DEBUG"/>
     <logger name="TCK-Test" level="ERROR"/>
     <logger name="org.hibernate" level="ERROR"/>
     <logger name="repository" level="INFO"/>
-    <logger name="blockchain" level="INFO"/>
+    <logger name="blockchain" level="OFF"/>
     <logger name="mine" level="DEBUG"/>
     <logger name="blockqueue" level="DEBUG"/>
     <logger name="rlp" level="ERROR"/>
