@@ -37,7 +37,7 @@ public class Crawler extends Thread {
         this.all = new HashSet<>(manager.getTable().getClosestNodes(myId));
         this.graph = new HashMap<>();
         for(Node node : this.all) {
-            graph.put(node.getHost(), new GraphNode(node));
+            graph.put(node.getHost() + ":" + node.getPort(), new GraphNode(node));
         }
     }
 
@@ -97,9 +97,10 @@ public class Crawler extends Thread {
             for(Node node : nodes) {
                 GraphNode graphNode = new GraphNode(node);
                 graphNodes.add(graphNode);
-                graph.put(node.getHost(), graphNode);
+                graph.put(node.getHost() + ":" + node.getPort(), graphNode);
             }
-            graph.get(evt.getAddress().getAddress().getHostAddress()).neighbours = graphNodes;
+            graph.get(evt.getAddress().getAddress().getHostAddress() + ":" +
+                        evt.getAddress().getPort()).neighbours = graphNodes;
             this.all.addAll(nodes);
             logger.info(graph.keySet().toString() + " " + graph.size());
         }
