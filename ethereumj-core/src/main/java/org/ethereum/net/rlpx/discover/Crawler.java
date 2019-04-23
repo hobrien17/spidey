@@ -99,8 +99,11 @@ public class Crawler extends Thread {
                 graphNodes.add(graphNode);
                 graph.put(node.getHost() + ":" + node.getPort(), graphNode);
             }
-            graph.get(evt.getAddress().getAddress().getHostAddress() + ":" +
-                        evt.getAddress().getPort()).neighbours = graphNodes;
+            GraphNode graphNode =  graph.get(evt.getAddress().getAddress().getHostAddress() + ":" + evt.getAddress().getPort());
+            if(graphNode != null) { // quick fix to stop NPE, alternative approach could be to add this node to the graph
+                graphNode.neighbours = graphNodes;
+            }
+
             this.all.addAll(nodes);
             logger.info(graph.keySet().toString() + " " + graph.size());
         }
