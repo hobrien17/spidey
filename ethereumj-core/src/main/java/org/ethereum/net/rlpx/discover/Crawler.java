@@ -93,12 +93,15 @@ public class Crawler extends Thread {
     public void addNodes(DiscoveryEvent evt) {
         synchronized (lock) {
             Collection<Node> nodes = ((NeighborsMessage)evt.getMessage()).getNodes();
+            List<GraphNode> graphNodes = new ArrayList<>();
             for(Node node : nodes) {
                 GraphNode graphNode = new GraphNode(node);
+                graphNodes.add(graphNode);
                 graph.put(node.getHost(), graphNode);
-                graph.get(evt.getAddress().getAddress().getHostAddress()).neighbours.add(graphNode);
             }
+            graph.get(evt.getAddress().getAddress().getHostAddress()).neighbours = graphNodes;
             this.all.addAll(nodes);
+            logger.info(graph.keySet().toString() + " " + graph.size());
         }
     }
 
@@ -121,6 +124,11 @@ public class Crawler extends Thread {
         GraphNode(Node node) {
             this.node = node;
             this.neighbours = new ArrayList<>();
+        }
+
+        @Override
+        public String toString() {
+            return node.toString();
         }
     }
 }
