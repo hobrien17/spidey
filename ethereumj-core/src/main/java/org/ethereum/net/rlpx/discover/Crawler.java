@@ -12,9 +12,11 @@ import java.util.*;
 public class Crawler extends Thread {
     private static Crawler instance; //singleton instance because I'm lazy
 
-    private static final int PAUSE = 10;
+    private static final int PAUSE = 5;
 
     private Set<Node> all; //all the nodes we have traversed - going to get big so may have to reconsider if this is appropriate
+    private Set<Node> toAdd; //all the nodes we have found but need to be added to all
+
     private Map<String, GraphNode> graph; //all the nodes we have traversed as graph nodes
     private byte[] myId; //id of our node
 
@@ -35,6 +37,7 @@ public class Crawler extends Thread {
         this.myId = myId;
         this.manager = manager;
         this.all = new HashSet<>(manager.getTable().getClosestNodes(myId));
+        this.toAdd = new HashSet<>();
         this.graph = new HashMap<>();
         for(Node node : this.all) {
             graph.put(node.getHost() + ":" + node.getPort(), new GraphNode(node));
@@ -72,16 +75,19 @@ public class Crawler extends Thread {
         active = true;
 
         while(active) {
-            synchronized (lock) {
-                for (Node node : all) {
-                    manager.getNodeHandler(node).sendFindNode(myId);
-                }
+            for (Node node : all) {
+                manager.getNodeHandler(node).sendFindNode(myId);
 
                 try {
                     Thread.sleep(PAUSE); //take a breather to try to avoid overloading the network
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
+            }
+
+            synchronized (lock) {
+                all.addAll(toAdd);
+                toAdd = new HashSet<>();
             }
         }
     }
@@ -91,22 +97,24 @@ public class Crawler extends Thread {
     }
 
     public void addNodes(DiscoveryEvent evt) {
-        synchronized (lock) {
-            Collection<Node> nodes = ((NeighborsMessage)evt.getMessage()).getNodes();
-            List<GraphNode> graphNodes = new ArrayList<>();
-            for(Node node : nodes) {
-                GraphNode graphNode = new GraphNode(node);
-                graphNodes.add(graphNode);
-                graph.put(node.getHost() + ":" + node.getPort(), graphNode);
-            }
-            GraphNode graphNode =  graph.get(evt.getAddress().getAddress().getHostAddress() + ":" + evt.getAddress().getPort());
-            if(graphNode != null) { // quick fix to stop NPE, alternative approach could be to add this node to the graph
-                graphNode.neighbours = graphNodes;
-            }
+        Collection<Node> nodes = ((NeighborsMessage)evt.getMessage()).getNodes();
+        List<GraphNode> graphNodes = new ArrayList<>();
 
-            this.all.addAll(nodes);
-            logger.info(graph.keySet().toString() + " " + graph.size());
+        for(Node node : nodes) { //convert each Node to a GraphNode and add it to the graph
+            GraphNode graphNode = new GraphNode(node);
+            graphNodes.add(graphNode);
+            graph.put(node.getHost() + ":" + node.getPort(), graphNode);
         }
+
+        GraphNode target =  graph.get(evt.getAddress().getAddress().getHostAddress() + ":" + evt.getAddress().getPort());
+        if(target != null) { // quick fix to stop NPE, alternative approach could be to add this node to the graph
+            target.neighbours = graphNodes;
+        }
+
+        synchronized (lock) {
+            this.toAdd.addAll(nodes);
+        }
+        logger.info(graph.keySet().toString() + " " + graph.size());
     }
 
     /**
