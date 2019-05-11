@@ -15,7 +15,7 @@ public class Crawler extends Thread {
     private static Crawler instance; //singleton instance because I'm lazy
 
     private static final int PAUSE = 5;
-	private static final int WRITE_INTERVAL = 600;
+	private static final int WRITE_INTERVAL = 300;
 
     private Set<Node> all; //all the nodes we have traversed - going to get big so may have to reconsider if this is appropriate
     private Set<Node> toAdd; //all the nodes we have found but need to be added to all
@@ -41,14 +41,15 @@ public class Crawler extends Thread {
     public Crawler(NodeManager manager, byte[] myId) {
         this.myId = myId;
         this.manager = manager;
-        this.all = new HashSet<>(manager.getTable().getClosestNodes(myId));
+        this.all = new HashSet<>();
         this.toAdd = new HashSet<>();
         this.graph = new HashMap<>();
 		this.writer = new NodeFileWriter();
 		this.iters = 1;
-        for(Node node : this.all) {
-            graph.put(node.getHost() + ":" + node.getPort(), new GraphNode(node));
-        }
+		
+		Node myNode = manager.getTable().getNode();
+		this.all.add(myNode);
+		this.graph.put(myNode.getHost() + ":" + myNode.getPort(), new GraphNode(manager.getTable().getNode()));
     }
 
     /**
@@ -77,6 +78,21 @@ public class Crawler extends Thread {
               System.getProperty("user.dir"));
         crawl();
     }
+	
+	private void addToGraph(String targetHost, int targetPort, Collection<Node> neighbours) {
+		List<GraphNode> graphNodes = new ArrayList<>();
+
+		for(Node node : neighbours) { //convert each Node to a GraphNode and add it to the graph
+			GraphNode graphNode = new GraphNode(node);
+			graphNodes.add(graphNode);
+			graph.put(node.getHost() + ":" + node.getPort(), graphNode);
+		}	
+						
+		GraphNode target =  graph.get(targetHost + ":" + targetPort);
+		if(target != null) { // quick fix to stop NPE, alternative approach could be to add this node to the graph
+            target.neighbours = graphNodes;
+        }
+	}
 
     /**
      * Do all the important things
@@ -84,7 +100,16 @@ public class Crawler extends Thread {
     private void crawl() {
         while(active) {
             for (Node node : all) {
-                manager.getNodeHandler(node).sendFindNode(myId);
+				if(Arrays.equals(node.getId(), myId)) {
+					Collection<Node> closest = manager.getTable().getClosestNodes(myId);
+					synchronized(lock) {
+						toAdd.addAll(closest);
+					}
+					
+					addToGraph(node.getHost().toString(), node.getPort(), closest);
+				} else {
+					manager.getNodeHandler(node).sendFindNode(myId);
+				}
 
                 try {
                     Thread.sleep(PAUSE); //take a breather to try to avoid overloading the network
@@ -108,16 +133,7 @@ public class Crawler extends Thread {
         Collection<Node> nodes = ((NeighborsMessage)evt.getMessage()).getNodes();
         List<GraphNode> graphNodes = new ArrayList<>();
 
-        for(Node node : nodes) { //convert each Node to a GraphNode and add it to the graph
-            GraphNode graphNode = new GraphNode(node);
-            graphNodes.add(graphNode);
-            graph.put(node.getHost() + ":" + node.getPort(), graphNode);
-        }
-
-        GraphNode target =  graph.get(evt.getAddress().getAddress().getHostAddress() + ":" + evt.getAddress().getPort());
-        if(target != null) { // quick fix to stop NPE, alternative approach could be to add this node to the graph
-            target.neighbours = graphNodes;
-        }
+        addToGraph(evt.getAddress().getAddress().getHostAddress(), evt.getAddress().getPort(), nodes);
 
         synchronized (lock) {
             this.toAdd.addAll(nodes);
@@ -147,15 +163,23 @@ public class Crawler extends Thread {
     }
 
     public GraphNode getGraphRoot() {
-        Node myNode = manager.getTable().getNode();
+		Node myNode = manager.getTable().getNode();
+		logger.info("ROOT: " + graph.get(myNode.getHost() + ":" + myNode.getPort()).neighbours);
+		return graph.get(myNode.getHost() + ":" + myNode.getPort());
+        /*Node myNode = manager.getTable().getNode();
         GraphNode root = new GraphNode(myNode);
 
         for(Node node : manager.getTable().getClosestNodes(myId)) {
-            GraphNode neighbour = graph.get(node.getHost() + ":" + node.getPort());
-            root.neighbours.add(neighbour);
+			logger.info(node.getHost() + ":" + node.getPort());
+            GraphNode neighbour = graph.get(node.getHost() + ":" + node.getPort()); //this is null?
+			if(neighbour != null) { //hacky fix to stop NPE
+				root.neighbours.add(neighbour);
+			} else {
+				manager.getNodeHandler(node).sendFindNode(myId);
+			}
         }
 
-        return root;
+        return root;*/
     }
 
     /**
@@ -163,7 +187,7 @@ public class Crawler extends Thread {
      */
     class GraphNode {
         Node node;
-        List<GraphNode> neighbours;
+        List<GraphNode> neighbours; 
 
         GraphNode(Node node) {
             this.node = node;
@@ -172,7 +196,7 @@ public class Crawler extends Thread {
 
         @Override
         public String toString() {
-            return node.toString();
+            return "GraphNode(" + node.toString() + ")";
         }
     }
 }

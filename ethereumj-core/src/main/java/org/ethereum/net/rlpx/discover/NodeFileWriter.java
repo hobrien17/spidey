@@ -70,6 +70,7 @@ public class NodeFileWriter {
             nodes.add(new NodeOutput(next.node.getHost(), loc.name));
             locations.add(loc);
             visited.add(next);
+			logger.info("NS:" + next.neighbours);
             for(Crawler.GraphNode neighbour : next.neighbours) {
                 links.add(new LinkOutput(next.node.getHost(), neighbour.node.getHost()));
                 if(!visited.contains(neighbour)) {
