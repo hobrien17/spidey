@@ -154,6 +154,10 @@ dependencies {
     // used to hide spring initialization logs messages in samples
     optional "org.slf4j:jcl-over-slf4j:${slf4jVersion}"
 
+    // libraries used in crawler
+    implementation 'com.google.code.gson:gson:2.8.5'
+    compile 'com.google.guava:guava:27.1-jre'
+
     testCompile "junit:junit:${junitVersion}"
     testCompile "org.springframework:spring-test:${springVersion}"
     testCompile "org.mockito:mockito-core:2.+"

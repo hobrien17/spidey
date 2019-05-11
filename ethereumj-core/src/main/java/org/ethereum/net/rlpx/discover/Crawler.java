@@ -1,5 +1,6 @@
 package org.ethereum.net.rlpx.discover;
 
+import com.google.common.graph.Graph;
 import org.ethereum.net.rlpx.NeighborsMessage;
 import org.ethereum.net.rlpx.Node;
 import org.slf4j.LoggerFactory;
@@ -22,8 +23,8 @@ public class Crawler extends Thread {
 
     private NodeManager manager; //used to do all the important networky things
 
-    private boolean active; //set this to false when we want to stop traversal
-    private final Object lock = new Object(); //thread safety is important
+    boolean active; //set this to false when we want to stop traversal
+    final Object lock = new Object(); //thread safety is important
 
     static final org.slf4j.Logger logger = LoggerFactory.getLogger("discover");
 
@@ -65,6 +66,7 @@ public class Crawler extends Thread {
 
     @Override
     public void run() {
+        new NodeFileWriter(this).start();
         crawl();
     }
 
@@ -96,6 +98,10 @@ public class Crawler extends Thread {
         active = false;
     }
 
+    public boolean isActive() {
+        return active;
+    }
+
     public void addNodes(DiscoveryEvent evt) {
         Collection<Node> nodes = ((NeighborsMessage)evt.getMessage()).getNodes();
         List<GraphNode> graphNodes = new ArrayList<>();
@@ -122,16 +128,28 @@ public class Crawler extends Thread {
      *
      * @return A list of nodes adjacent to our node
      */
-    public Collection<GraphNode> getGraph() {
-        return graph.values();
+    public Map<String, GraphNode> getGraph() {
+        return new HashMap<>(graph);
+    }
+
+    public GraphNode getGraphRoot() {
+        Node myNode = manager.getTable().getNode();
+        GraphNode root = new GraphNode(myNode);
+
+        for(Node node : manager.getTable().getClosestNodes(myId)) {
+            GraphNode neighbour = graph.get(node.getHost() + ":" + node.getPort());
+            root.neighbours.add(neighbour);
+        }
+
+        return root;
     }
 
     /**
      * Little subclass here to represent a node in the topology graph
      */
-    private class GraphNode {
-        private Node node;
-        private List<GraphNode> neighbours;
+    class GraphNode {
+        Node node;
+        List<GraphNode> neighbours;
 
         GraphNode(Node node) {
             this.node = node;
