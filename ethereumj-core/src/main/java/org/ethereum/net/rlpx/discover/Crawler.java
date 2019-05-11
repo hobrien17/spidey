@@ -8,12 +8,14 @@ import org.slf4j.LoggerFactory;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.io.IOException;
 import java.util.*;
 
 public class Crawler extends Thread {
     private static Crawler instance; //singleton instance because I'm lazy
 
     private static final int PAUSE = 5;
+	private static final int WRITE_INTERVAL = 600;
 
     private Set<Node> all; //all the nodes we have traversed - going to get big so may have to reconsider if this is appropriate
     private Set<Node> toAdd; //all the nodes we have found but need to be added to all
@@ -22,7 +24,9 @@ public class Crawler extends Thread {
     private byte[] myId; //id of our node
 
     private NodeManager manager; //used to do all the important networky things
+	private NodeFileWriter writer;
 
+	private int iters;
     boolean active; //set this to false when we want to stop traversal
     final Object lock = new Object(); //thread safety is important
 
@@ -40,6 +44,8 @@ public class Crawler extends Thread {
         this.all = new HashSet<>(manager.getTable().getClosestNodes(myId));
         this.toAdd = new HashSet<>();
         this.graph = new HashMap<>();
+		this.writer = new NodeFileWriter();
+		this.iters = 1;
         for(Node node : this.all) {
             graph.put(node.getHost() + ":" + node.getPort(), new GraphNode(node));
         }
@@ -66,7 +72,9 @@ public class Crawler extends Thread {
 
     @Override
     public void run() {
-        new NodeFileWriter(this).start();
+		active = true;
+		System.out.println("Working Directory = " +
+              System.getProperty("user.dir"));
         crawl();
     }
 
@@ -74,8 +82,6 @@ public class Crawler extends Thread {
      * Do all the important things
      */
     private void crawl() {
-        active = true;
-
         while(active) {
             for (Node node : all) {
                 manager.getNodeHandler(node).sendFindNode(myId);
@@ -98,10 +104,6 @@ public class Crawler extends Thread {
         active = false;
     }
 
-    public boolean isActive() {
-        return active;
-    }
-
     public void addNodes(DiscoveryEvent evt) {
         Collection<Node> nodes = ((NeighborsMessage)evt.getMessage()).getNodes();
         List<GraphNode> graphNodes = new ArrayList<>();
@@ -120,7 +122,19 @@ public class Crawler extends Thread {
         synchronized (lock) {
             this.toAdd.addAll(nodes);
         }
-        logger.info(graph.keySet().toString() + " " + graph.size());
+        logger.info("" + graph.size());
+		
+		if(iters % WRITE_INTERVAL == 0) {
+			logger.info("WRITING GRAPH TO FILE " + iters + " " + WRITE_INTERVAL);
+			try {
+				synchronized (lock) {
+					writer.write(getGraphRoot());
+				}
+			} catch (IOException ex) {
+				ex.printStackTrace();
+			}
+		}
+		iters++;
     }
 
     /**

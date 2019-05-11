@@ -10,12 +10,15 @@ public abstract class AbstractWriter extends Thread {
     protected abstract void write() throws IOException;
 
     public AbstractWriter(Crawler master) {
+		master.logger.info("" + master);
         this.master = master;
     }
 
     @Override
     public void run() {
-        while(master.isActive()) {
+		master.logger.info("Activity: " + master.active);
+        while(master.active) {
+			master.logger.info("BBBBBBB");
             try {
                 Thread.sleep(DELAY);
             } catch (InterruptedException e) {
@@ -23,6 +26,7 @@ public abstract class AbstractWriter extends Thread {
             }
 
             try {
+				master.logger.info("Writing to files");
                 write();
             } catch (IOException ex) {
                 ex.printStackTrace();

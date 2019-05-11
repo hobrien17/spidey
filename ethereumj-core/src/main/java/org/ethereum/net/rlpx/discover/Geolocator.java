@@ -14,20 +14,20 @@ import java.io.IOException;
 public class Geolocator {
     private static final String DATABASE = "files/mapping.csv";
 
-    public static RangeMap<Integer, Triple<String, Double, Double>> getDatabase() {
-        RangeMap<Integer, Triple<String, Double, Double>> result = TreeRangeMap.create();
+    public static RangeMap<Long, Triple<String, Double, Double>> getDatabase() {
+        RangeMap<Long, Triple<String, Double, Double>> result = TreeRangeMap.create();
         try (BufferedReader in = new BufferedReader(new FileReader(DATABASE))) {
             String line = in.readLine();
             while(line != null) {
-                String[] fields = line.split(",");
+                String[] fields = line.split(",(?=([^\"]|\"[^\"]*\")*$)");
+				// hi ive actually no clue what this regex does but it splits the csv up nicely
                 try {
-                    Integer startAddr = Integer.parseInt(fields[0]);
-                    Integer endAddr = Integer.parseInt(fields[1]);
-                    Double latitude = Double.parseDouble(fields[6]);
-                    Double longitude = Double.parseDouble(fields[7]);
-                    String name = fields[5] + " (" + 2 + ")";
+                    Long startAddr = Long.parseLong(fields[0].replaceAll("\"", ""));
+                    Long endAddr = Long.parseLong(fields[1].replaceAll("\"", ""));
+                    Double latitude = Double.parseDouble(fields[6].replaceAll("\"", ""));
+                    Double longitude = Double.parseDouble(fields[7].replaceAll("\"", ""));
+                    String name = fields[5].replaceAll("\"", "") + " (" + fields[2].replaceAll("\"", "") + ")";
                     result.put(Range.closed(startAddr, endAddr), new ImmutableTriple<>(name, latitude, longitude));
-
                 } catch (NumberFormatException | IndexOutOfBoundsException ex) {
                     ex.printStackTrace();
                 }
