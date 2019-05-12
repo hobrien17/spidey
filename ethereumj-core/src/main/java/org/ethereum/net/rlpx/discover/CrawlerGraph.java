@@ -239,6 +239,12 @@ public class CrawlerGraph extends Thread {
         try (BufferedWriter linkFile = new BufferedWriter(new FileWriter(LINKS_FILE))) {
             linkFile.write(gson.toJson(new ArrayList<>(linkOut)));
         }
+
+        logger.info("NODE COUNT: " + allNodes.size());
+        logger.info("GRAPH: " + graph.nodes().size());
+        logger.info("LINKS: " + graph.edges().size());
+        logger.info("OUTPUT GRAPH: " + nodeOut.size());
+        logger.info("OUTPUT LINK: " + linkOut.size());
     }
 
     private class LocationOutput {
