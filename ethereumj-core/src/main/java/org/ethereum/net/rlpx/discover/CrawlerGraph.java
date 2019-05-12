@@ -280,6 +280,37 @@ public class CrawlerGraph extends Thread {
 
     }*/
 
+    private int getHopsFromRoot(Node dest) {
+        Queue<Node> toExplore = new LinkedList<>();
+        Map<Node, Node> parents = new HashMap<>();
+
+        toExplore.add(manager.homeNode);
+        parents.put(manager.homeNode, null);
+        boolean done = false;
+
+        while(!toExplore.isEmpty() && !done) {
+            Node next = toExplore.poll();
+            for(Node neighbour : graph.adjacentNodes(next)) {
+                if(neighbour.equals(dest)) {
+                    done = true;
+                }
+                if(!parents.containsKey(neighbour)) {
+                    toExplore.add(neighbour);
+                    parents.put(neighbour, next);
+                }
+            }
+        }
+
+        int distance = 0;
+        Node current = dest;
+        while(!current.equals(manager.homeNode)) {
+            distance += 1;
+            current = parents.get(current);
+        }
+
+        return distance;
+    }
+
     private void toFile() throws IOException {
         /*Set<LocationOutput> locOut = new HashSet<>();
         Set<NodeOutput> nodeOut = new HashSet<>();
@@ -342,7 +373,8 @@ public class CrawlerGraph extends Thread {
                 //Triple<String, Double, Double> loc = getGeo(node.getHost());
                 //if(loc != null) {
                     //locOut.add(new LocationOutput(loc.getLeft(), loc.getMiddle(), loc.getRight()));
-                nodes.add(new NodeOutput(node.getHexId(), node.getHost() + ":" + node.getPort(), 2));
+                nodes.add(new NodeOutput(node.getHexId(), node.getHost() + ":" + node.getPort(),
+                        getHopsFromRoot(node) + 1));
                 ipaddrs.add(node.getHost());
             }
 
