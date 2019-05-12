@@ -170,7 +170,7 @@ public class CrawlerGraph extends Thread {
         return null;
     }
 
-    public void recursiveCrawl() throws IOException {
+    /*public void recursiveCrawl() throws IOException {
         Stack<Node> toExplore = new Stack<>();
         Set<Node> alreadyExplored = new HashSet<>();
         Set<Pair<Node, Node>> links = new HashSet<>();
@@ -218,15 +218,17 @@ public class CrawlerGraph extends Thread {
             linkFile.write(gson.toJson(new ArrayList<>(linkOut)));
         }
 
-    }
+    }*/
 
     private void toFile() throws IOException {
-        Set<LocationOutput> locOut = new HashSet<>();
+        /*Set<LocationOutput> locOut = new HashSet<>();
         Set<NodeOutput> nodeOut = new HashSet<>();
-        Set<LinkOutput> linkOut = new HashSet<>();
+        Set<LinkOutput> linkOut = new HashSet<>();*/
         Gson gson = new Gson();
 
-        for(Node node : graph.nodes()) {
+
+
+        /*for(Node node : graph.nodes()) {
             Triple<String, Double, Double> loc = getGeo(node.getHost());
             if(loc != null) {
                 locOut.add(new LocationOutput(loc.getLeft(), loc.getMiddle(), loc.getRight()));
@@ -239,26 +241,107 @@ public class CrawlerGraph extends Thread {
         }
         for(EndpointPair<Node> pair : graph.edges()) {
             linkOut.add(new LinkOutput(pair.nodeU().getHost(), pair.nodeV().getHost()));
-        }
+        }*/
+
+        Output out = new Output();
+
+
 
         try (BufferedWriter nodeFile = new BufferedWriter(new FileWriter(NODE_FILE))) {
-            nodeFile.write(gson.toJson(new ArrayList<>(nodeOut)));
+            nodeFile.write(gson.toJson(out));
         }
-        try (BufferedWriter locFile = new BufferedWriter(new FileWriter(LOCATION_FILE))) {
+        /*try (BufferedWriter locFile = new BufferedWriter(new FileWriter(LOCATION_FILE))) {
             locFile.write(gson.toJson(new ArrayList<>(locOut)));
         }
         try (BufferedWriter linkFile = new BufferedWriter(new FileWriter(LINKS_FILE))) {
             linkFile.write(gson.toJson(new ArrayList<>(linkOut)));
-        }
+        }*/
 
         logger.info("NODE COUNT: " + allNodes.size());
         logger.info("GRAPH: " + graph.nodes().size());
         logger.info("LINKS: " + graph.edges().size());
-        logger.info("OUTPUT GRAPH: " + nodeOut.size());
-        logger.info("OUTPUT LINK: " + linkOut.size());
+        //logger.info("OUTPUT GRAPH: " + nodeOut.size());
+        //logger.info("OUTPUT LINK: " + linkOut.size());
     }
 
-    private class LocationOutput {
+    private class Output {
+        private List<NodeOutput> nodes;
+        private List<LinkOutput> links;
+
+        private Output() throws IOException {
+            nodes = new LinkedList<>();
+            links = new LinkedList<>();
+
+            for(Node node : graph.nodes()) {
+                //Triple<String, Double, Double> loc = getGeo(node.getHost());
+                //if(loc != null) {
+                    //locOut.add(new LocationOutput(loc.getLeft(), loc.getMiddle(), loc.getRight()));
+                    if(Arrays.equals(node.getId(), manager.getTable().getNode().getId())) {
+                        nodes.add(new NodeOutput(node.getHost(), 1));
+                    } else {
+                        nodes.add(new NodeOutput(node.getHost(), 2));
+                    }
+                //}
+            }
+
+            for(EndpointPair<Node> pair : graph.edges()) {
+                links.add(new LinkOutput(pair.nodeU().getHost(), pair.nodeV().getHost()));
+            }
+        }
+    }
+
+    private class NodeOutput {
+        private String id;
+        private int group;
+
+        public NodeOutput(String id, int group) {
+            this.id = id;
+            this.group = group;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            NodeOutput that = (NodeOutput) o;
+            return Objects.equals(id, that.id);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(id);
+        }
+    }
+
+    private class LinkOutput {
+        private String source;
+        private String target;
+
+        public LinkOutput(String source, String target) {
+            this.source = source;
+            this.target = target;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            LinkOutput that = (LinkOutput) o;
+            return Objects.equals(source, that.source) &&
+                    Objects.equals(target, that.target);
+        }
+
+        @Override
+        public int hashCode() {
+            return source.hashCode() + target.hashCode();
+        }
+    }
+
+    private class NodeSimpleOutput {
+
+    }
+
+    /*private class LocationOutput {
         private String name;
         private double latitude;
         private double longitude;
@@ -268,9 +351,9 @@ public class CrawlerGraph extends Thread {
             this.latitude = latitude;
             this.longitude = longitude;
         }
-    }
+    }*/
 
-    private class NodeOutput {
+    /*private class NodeOutput {
         private String ip;
         private String location;
 		private boolean isRoot;
@@ -308,5 +391,5 @@ public class CrawlerGraph extends Thread {
         public int hashCode() {
             return srcIp.hashCode() + dstIp.hashCode();
         }
-    }
+    }*/
 }
