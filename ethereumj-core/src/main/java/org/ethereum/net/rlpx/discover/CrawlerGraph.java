@@ -133,7 +133,7 @@ public class CrawlerGraph extends Thread {
             allNodes.add(target);
             graph.addNode(target);
         } else {
-            //removeEdges(target);
+            removeEdges(target);
         }
         for(Node neighbour : ((NeighborsMessage)evt.getMessage()).getNodes()) {
             if(!allNodes.contains(neighbour)) {
@@ -276,12 +276,13 @@ public class CrawlerGraph extends Thread {
                 //Triple<String, Double, Double> loc = getGeo(node.getHost());
                 //if(loc != null) {
                     //locOut.add(new LocationOutput(loc.getLeft(), loc.getMiddle(), loc.getRight()));
+                if(graph.adjacentNodes(node).size() > 0) {
                     if(Arrays.equals(node.getId(), manager.getTable().getNode().getId())) {
                         nodes.add(new NodeOutput(node.getHost(), true));
                     } else {
                         nodes.add(new NodeOutput(node.getHost(), false));
                     }
-                //}
+                }
             }
 
             for(EndpointPair<Node> pair : graph.edges()) {
@@ -300,9 +301,9 @@ public class CrawlerGraph extends Thread {
         public NodeOutput(String id, boolean root) {
             this.id = id;
             if(root) {
-                this.colour = "red";
+                this.colour = "#00BF00";
             } else {
-                this.colour = "green";
+                this.colour = "#BF0000";
             }
         }
 
