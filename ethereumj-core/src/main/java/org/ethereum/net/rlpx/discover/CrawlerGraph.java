@@ -3,6 +3,7 @@ package org.ethereum.net.rlpx.discover;
 import com.google.common.collect.RangeMap;
 import com.google.common.graph.EndpointPair;
 import com.google.common.graph.GraphBuilder;
+import com.google.common.graph.Graphs;
 import com.google.common.graph.MutableGraph;
 import com.google.gson.Gson;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -22,6 +23,7 @@ import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.*;
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class CrawlerGraph extends Thread {
     private final static String NODE_FILE = "files/out/nodes.json";
@@ -272,15 +274,15 @@ public class CrawlerGraph extends Thread {
             Set<NodeOutput> nodes = new HashSet<>();
             Set<LinkOutput> links = new HashSet<>();
 
-            for(Node node : graph.nodes()) {
+            for(Node node : Graphs.reachableNodes(graph, manager.getTable().getNode())) {
                 //Triple<String, Double, Double> loc = getGeo(node.getHost());
                 //if(loc != null) {
                     //locOut.add(new LocationOutput(loc.getLeft(), loc.getMiddle(), loc.getRight()));
                 if(graph.adjacentNodes(node).size() > 0) {
                     if(Arrays.equals(node.getId(), manager.getTable().getNode().getId())) {
-                        nodes.add(new NodeOutput(node.getHost(), true));
+                        nodes.add(new NodeOutput(node.getHost(), 1));
                     } else {
-                        nodes.add(new NodeOutput(node.getHost(), false));
+                        nodes.add(new NodeOutput(node.getHost(), 2));
                     }
                 }
             }
@@ -296,15 +298,11 @@ public class CrawlerGraph extends Thread {
 
     private class NodeOutput {
         private String id;
-        private String colour;
+        private int group;
 
-        public NodeOutput(String id, boolean root) {
+        public NodeOutput(String id, int group) {
             this.id = id;
-            if(root) {
-                this.colour = "#00BF00";
-            } else {
-                this.colour = "#BF0000";
-            }
+            this.group = group;
         }
 
         @Override
