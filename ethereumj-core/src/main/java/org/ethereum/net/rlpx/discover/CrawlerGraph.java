@@ -74,14 +74,18 @@ public class CrawlerGraph extends Thread {
 
     @Override
     public void run() {
+        int i = 0;
         while(true) {
             try {
-                Thread.sleep(100);
+                Thread.sleep(10);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
 
             discover();
+            if(i++ % WRITE_ITERS == 0) {
+                recursiveCrawl();
+            }
         }
     }
 
@@ -90,6 +94,7 @@ public class CrawlerGraph extends Thread {
         Set<Node> toDiscover = new HashSet<>();
         synchronized (lock) {
             toDiscover.addAll(allNodes);
+            logger.info("Discovered: " + allNodes.size());
         }
         for(NodeEntry entry : manager.getTable().getAllNodes()) {
             toDiscover.add(entry.getNode());
@@ -180,6 +185,41 @@ public class CrawlerGraph extends Thread {
             e.printStackTrace();
         }
         return null;
+    }
+
+    public void recursiveCrawl() {
+        logger.info("CRAWLING");
+
+        Queue<Node> toExplore = new LinkedList<>();
+        Set<Node> alreadyExplored = new HashSet<>();
+
+        toExplore.add(manager.getTable().getNode());
+        alreadyExplored.add(manager.getTable().getNode());
+
+        while(!toExplore.isEmpty()) {
+            Node next = toExplore.poll();
+            if(!graph.nodes().contains(next)) {
+                graph.addNode(next);
+            }
+            Collection<Node> neighbours = manager.getTable().getClosestNodes(next.getId());
+            for(Node neighbour : neighbours) {
+                if(!graph.nodes().contains(neighbour)) {
+                    graph.addNode(neighbour);
+                }
+
+                if(!alreadyExplored.contains(neighbour)) {
+                    toExplore.add(neighbour);
+                    graph.putEdge(neighbour, next);
+                }
+            }
+            alreadyExplored.add(next);
+        }
+
+        try {
+            toFile();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     /*public void recursiveCrawl() throws IOException {
