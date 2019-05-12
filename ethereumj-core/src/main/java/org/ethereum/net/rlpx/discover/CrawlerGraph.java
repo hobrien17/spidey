@@ -301,10 +301,17 @@ public class CrawlerGraph extends Thread {
             }
         }
 
+        if(!done) {
+            return 0;
+        }
+
         int distance = 0;
         Node current = dest;
         while(!current.equals(manager.homeNode)) {
             distance += 1;
+            if(parents.get(current) == null) {
+                logger.warn("" + current);
+            }
             current = parents.get(current);
         }
 
