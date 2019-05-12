@@ -289,7 +289,7 @@ public class CrawlerGraph extends Thread {
         while(!toExplore.isEmpty()) {
             Node next = toExplore.poll();
             if(next.equals(dest)) {
-                return distances.get(dest);
+                return distances.get(next);
             }
             for(Node neighbour : graph.adjacentNodes(next)) {
                 if(distances.get(neighbour) == null) {
@@ -356,7 +356,7 @@ public class CrawlerGraph extends Thread {
         private Output() throws IOException {
             Set<NodeOutput> nodes = new HashSet<>();
             Set<LinkOutput> links = new HashSet<>();
-            Set<String> ipaddrs = new HashSet<>();
+            Set<String> hexIds = new HashSet<>();
 
             nodes.add(new NodeOutput(manager.homeNode.getHexId(),
                     manager.homeNode.getHost() + ":" + manager.homeNode.getPort(), 1));
@@ -366,12 +366,12 @@ public class CrawlerGraph extends Thread {
                     //locOut.add(new LocationOutput(loc.getLeft(), loc.getMiddle(), loc.getRight()));
                 nodes.add(new NodeOutput(node.getHexId(), node.getHost() + ":" + node.getPort(),
                         getHopsFromRoot(node) + 1));
-                ipaddrs.add(node.getHost());
+                hexIds.add(node.getHexId());
             }
 
             for(EndpointPair<Node> pair : graph.edges()) {
-                if(ipaddrs.contains(pair.nodeU().getHost()) && ipaddrs.contains(pair.nodeV().getHost())) {
-                    links.add(new LinkOutput(pair.nodeU().getHost(), pair.nodeV().getHost()));
+                if(hexIds.contains(pair.nodeU().getHexId()) && hexIds.contains(pair.nodeV().getHexId())) {
+                    links.add(new LinkOutput(pair.nodeU().getHexId(), pair.nodeV().getHexId()));
                 }
             }
 
@@ -399,22 +399,22 @@ public class CrawlerGraph extends Thread {
 
         private OutputWithLocation() throws IOException {
             Map<String, LocationOutput> nodes = new HashMap<>();
-            Map<String, String> ipToLoc = new HashMap<>();
+            Map<String, String> idToLoc = new HashMap<>();
             Set<LinkOutput> links = new HashSet<>();
 
-            for (Node node : Graphs.reachableNodes(graph, manager.getTable().getNode())) {
+            for (Node node : Graphs.reachableNodes(graph, manager.homeNode)) {
                 String loc = addLocation(nodes, node);
                 if(loc != null) {
-                    ipToLoc.put(node.getHost(), loc);
+                    idToLoc.put(node.getHexId(), loc);
                 }
             }
             String loc = addLocation(nodes, manager.getTable().getNode());
-            ipToLoc.put(manager.getTable().getNode().getHost(), loc);
+            idToLoc.put(manager.homeNode.getHexId(), loc);
 
             for(EndpointPair<Node> pair : graph.edges()) {
-                if(ipToLoc.containsKey(pair.nodeU().getHost()) && ipToLoc.containsValue(pair.nodeV().getHost())) {
-                    links.add(new LinkOutput(ipToLoc.get(pair.nodeU().getHost()),
-                            ipToLoc.get(pair.nodeV().getHost())));
+                if(idToLoc.containsKey(pair.nodeU().getHexId()) && idToLoc.containsKey(pair.nodeV().getHexId())) {
+                    links.add(new LinkOutput(idToLoc.get(pair.nodeU().getHexId()),
+                            idToLoc.get(pair.nodeV().getHexId())));
                 }
             }
 
