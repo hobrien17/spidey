@@ -46,6 +46,7 @@ public class CrawlerGraph extends Thread {
     public CrawlerGraph(NodeManager manager) {
         this.manager = manager;
         this.allNodes = new HashSet<>();
+        this.toAdd = new HashSet<>();
         this.graph = GraphBuilder.undirected().allowsSelfLoops(false).build();
 
         this.allNodes.add(manager.getTable().getNode());
