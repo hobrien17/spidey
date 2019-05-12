@@ -133,7 +133,7 @@ public class CrawlerGraph extends Thread {
             allNodes.add(target);
             graph.addNode(target);
         } else {
-            removeEdges(target);
+            //removeEdges(target);
         }
         for(Node neighbour : ((NeighborsMessage)evt.getMessage()).getNodes()) {
             if(!allNodes.contains(neighbour)) {
@@ -269,17 +269,17 @@ public class CrawlerGraph extends Thread {
         private List<LinkOutput> links;
 
         private Output() throws IOException {
-            nodes = new LinkedList<>();
-            links = new LinkedList<>();
+            Set<NodeOutput> nodes = new HashSet<>();
+            Set<LinkOutput> links = new HashSet<>();
 
             for(Node node : graph.nodes()) {
                 //Triple<String, Double, Double> loc = getGeo(node.getHost());
                 //if(loc != null) {
                     //locOut.add(new LocationOutput(loc.getLeft(), loc.getMiddle(), loc.getRight()));
                     if(Arrays.equals(node.getId(), manager.getTable().getNode().getId())) {
-                        nodes.add(new NodeOutput(node.getHost(), 1));
+                        nodes.add(new NodeOutput(node.getHost(), true));
                     } else {
-                        nodes.add(new NodeOutput(node.getHost(), 2));
+                        nodes.add(new NodeOutput(node.getHost(), false));
                     }
                 //}
             }
@@ -287,16 +287,23 @@ public class CrawlerGraph extends Thread {
             for(EndpointPair<Node> pair : graph.edges()) {
                 links.add(new LinkOutput(pair.nodeU().getHost(), pair.nodeV().getHost()));
             }
+
+            this.nodes = new ArrayList<>(nodes);
+            this.links = new ArrayList<>(links);
         }
     }
 
     private class NodeOutput {
         private String id;
-        private int group;
+        private String colour;
 
-        public NodeOutput(String id, int group) {
+        public NodeOutput(String id, boolean root) {
             this.id = id;
-            this.group = group;
+            if(root) {
+                this.colour = "red";
+            } else {
+                this.colour = "green";
+            }
         }
 
         @Override
