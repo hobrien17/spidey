@@ -84,6 +84,7 @@ public class CrawlerGraph extends Thread {
     }
 
     private void discover() {
+        logger.info("Sending discovery");
         Set<Node> toDiscover = new HashSet<>(allNodes);
         for(NodeEntry entry : manager.getTable().getAllNodes()) {
             toDiscover.add(entry.getNode());
@@ -121,6 +122,7 @@ public class CrawlerGraph extends Thread {
     }
 
     public void addNodes(DiscoveryEvent evt) {
+        logger.info("Adding nodes");
         updateClosest();
         Node target = getNodeWithId(evt.getMessage().getNodeId());
         if(target == null) {
