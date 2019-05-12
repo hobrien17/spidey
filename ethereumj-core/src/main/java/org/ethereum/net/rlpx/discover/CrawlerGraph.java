@@ -139,22 +139,31 @@ public class CrawlerGraph extends Thread {
     }
 
     public void addNodes(DiscoveryEvent evt) {
-        Node target = getNodeWithId(((NeighborsMessage)evt.getMessage()).getNodeId());
+        for(Node neighbour : manager.getTable().getClosestNodes(manager.homeNode.getId())) {
+            if(!graph.nodes().contains(neighbour)) {
+                graph.addNode(neighbour);
+                synchronized (lock) {
+                    toAdd.add(neighbour);
+                }
+            }
+        }
+
+        Node target = getNodeWithId(evt.getMessage().getNodeId());
         if(target == null) {
             logger.warn("NULL NODE FOUND");
             return;
         }
         Collection<Node> nodes = ((NeighborsMessage)evt.getMessage()).getNodes();
 
-        synchronized (lock) {
-            this.toAdd.addAll(nodes);
-        }
-
         for(Node neighbour : nodes) {
             if(!graph.nodes().contains(neighbour)) {
                 graph.addNode(neighbour);
             }
             graph.putEdge(target, neighbour);
+        }
+
+        synchronized (lock) {
+            this.toAdd.addAll(nodes);
         }
 
         logger.info("" + graph.nodes().size());
