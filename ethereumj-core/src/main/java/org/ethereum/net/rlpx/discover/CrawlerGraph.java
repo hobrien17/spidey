@@ -282,40 +282,24 @@ public class CrawlerGraph extends Thread {
 
     private int getHopsFromRoot(Node dest) {
         Queue<Node> toExplore = new LinkedList<>();
-        Map<Node, Node> parents = new HashMap<>();
-
+        Map<Node, Integer> distances = new HashMap<>();
+        distances.put(manager.homeNode, 0);
         toExplore.add(manager.homeNode);
-        parents.put(manager.homeNode, null);
-        boolean done = false;
 
-        while(!toExplore.isEmpty() && !done) {
+        while(!toExplore.isEmpty()) {
             Node next = toExplore.poll();
+            if(next.equals(dest)) {
+                return distances.get(dest);
+            }
             for(Node neighbour : graph.adjacentNodes(next)) {
-                if(!parents.containsKey(neighbour)) {
+                if(distances.get(neighbour) == null) {
+                    distances.put(neighbour, distances.get(next) + 1);
                     toExplore.add(neighbour);
-                    parents.put(neighbour, next);
-                }
-                if(neighbour.equals(dest)) {
-                    done = true;
                 }
             }
         }
 
-        if(!done) {
-            return 0;
-        }
-
-        int distance = 0;
-        Node current = dest;
-        while(!current.equals(manager.homeNode)) {
-            distance += 1;
-            if(parents.get(current) == null) {
-                logger.warn("" + current);
-            }
-            current = parents.get(current);
-        }
-
-        return distance;
+        return 100;
     }
 
     private void toFile() throws IOException {
