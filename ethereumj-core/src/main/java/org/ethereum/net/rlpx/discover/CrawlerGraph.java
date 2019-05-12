@@ -291,12 +291,12 @@ public class CrawlerGraph extends Thread {
         while(!toExplore.isEmpty() && !done) {
             Node next = toExplore.poll();
             for(Node neighbour : graph.adjacentNodes(next)) {
-                if(neighbour.equals(dest)) {
-                    done = true;
-                }
                 if(!parents.containsKey(neighbour)) {
                     toExplore.add(neighbour);
                     parents.put(neighbour, next);
+                }
+                if(neighbour.equals(dest)) {
+                    done = true;
                 }
             }
         }
