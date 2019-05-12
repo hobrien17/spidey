@@ -286,7 +286,7 @@ public class NodeManager implements Consumer<DiscoveryEvent>{
                     CrawlerGraph.setup(this);
                     CrawlerGraph.get().start();
                 }
-                //CrawlerGraph.get().addNodes(discoveryEvent); //TODO: just adding this here so we know this has changed
+                CrawlerGraph.get().addNodes(discoveryEvent); //TODO: just adding this here so we know this has changed
                 break;
         }
     }

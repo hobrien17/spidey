@@ -27,12 +27,14 @@ public class CrawlerGraph extends Thread {
     private final static String NODE_FILE = "files/out/nodes.json";
     private final static String LINKS_FILE = "files/out/links.json";
     private final static String LOCATION_FILE = "files/out/locations.json";
+    private final static int WRITE_ITERS = 600;
 
     private static CrawlerGraph instance = null; //singleton instance because I'm lazy
 
     private NodeManager manager;
     private Set<Node> allNodes;
     private MutableGraph<Node> graph;
+    private int iters;
 
     private RangeMap<Long, Triple<String, Double, Double>> geo;
 
@@ -45,6 +47,8 @@ public class CrawlerGraph extends Thread {
 
         this.allNodes.add(manager.getTable().getNode());
         this.graph.addNode(manager.getTable().getNode());
+
+        iters = 1;
 
         logger.info("Starting db retrieval (this will take a few minutes)");
         geo = Geolocator.getDatabase();
@@ -72,11 +76,8 @@ public class CrawlerGraph extends Thread {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            try {
-                recursiveCrawl();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+
+            discover();
         }
     }
 
@@ -135,6 +136,13 @@ public class CrawlerGraph extends Thread {
                 graph.addNode(neighbour);
             }
             graph.putEdge(target, neighbour);
+        }
+        if(iters++ % WRITE_ITERS == 0) {
+            try {
+                toFile();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -201,6 +209,34 @@ public class CrawlerGraph extends Thread {
             linkFile.write(gson.toJson(new ArrayList<>(linkOut)));
         }
 
+    }
+
+    private void toFile() throws IOException {
+        Set<LocationOutput> locOut = new HashSet<>();
+        Set<NodeOutput> nodeOut = new HashSet<>();
+        Set<LinkOutput> linkOut = new HashSet<>();
+        Gson gson = new Gson();
+
+        for(Node node : graph.nodes()) {
+            Triple<String, Double, Double> loc = getGeo(node.getHost());
+            if(loc != null) {
+                locOut.add(new LocationOutput(loc.getLeft(), loc.getMiddle(), loc.getRight()));
+                nodeOut.add(new NodeOutput(node.getHost(), loc.getLeft()));
+            }
+        }
+        for(EndpointPair<Node> pair : graph.edges()) {
+            linkOut.add(new LinkOutput(pair.nodeU().getHost(), pair.nodeV().getHost()));
+        }
+
+        try (BufferedWriter nodeFile = new BufferedWriter(new FileWriter(NODE_FILE))) {
+            nodeFile.write(gson.toJson(new ArrayList<>(nodeOut)));
+        }
+        try (BufferedWriter locFile = new BufferedWriter(new FileWriter(LOCATION_FILE))) {
+            locFile.write(gson.toJson(new ArrayList<>(locOut)));
+        }
+        try (BufferedWriter linkFile = new BufferedWriter(new FileWriter(LINKS_FILE))) {
+            linkFile.write(gson.toJson(new ArrayList<>(linkOut)));
+        }
     }
 
     private class LocationOutput {
