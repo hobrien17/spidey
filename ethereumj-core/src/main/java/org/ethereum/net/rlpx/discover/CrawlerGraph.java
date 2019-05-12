@@ -23,7 +23,6 @@ import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.*;
-import java.util.concurrent.LinkedBlockingQueue;
 
 public class CrawlerGraph extends Thread {
     private final static String NODE_FILE = "files/out/nodes.json";
@@ -246,11 +245,14 @@ public class CrawlerGraph extends Thread {
         }*/
 
         Output out = new Output();
-
+        OutputWithLocation locs = new OutputWithLocation();
 
 
         try (BufferedWriter nodeFile = new BufferedWriter(new FileWriter(NODE_FILE))) {
             nodeFile.write(gson.toJson(out));
+        }
+        try (BufferedWriter locFile = new BufferedWriter(new FileWriter(LOCATION_FILE))) {
+            locFile.write(gson.toJson(locs));
         }
         /*try (BufferedWriter locFile = new BufferedWriter(new FileWriter(LOCATION_FILE))) {
             locFile.write(gson.toJson(new ArrayList<>(locOut)));
@@ -273,25 +275,68 @@ public class CrawlerGraph extends Thread {
         private Output() throws IOException {
             Set<NodeOutput> nodes = new HashSet<>();
             Set<LinkOutput> links = new HashSet<>();
+            Set<String> ipaddrs = new HashSet<>();
 
+            nodes.add(new NodeOutput(manager.getTable().getNode().getHost(), 1));
             for(Node node : Graphs.reachableNodes(graph, manager.getTable().getNode())) {
                 //Triple<String, Double, Double> loc = getGeo(node.getHost());
                 //if(loc != null) {
                     //locOut.add(new LocationOutput(loc.getLeft(), loc.getMiddle(), loc.getRight()));
-                if(graph.adjacentNodes(node).size() > 0) {
-                    if(Arrays.equals(node.getId(), manager.getTable().getNode().getId())) {
-                        nodes.add(new NodeOutput(node.getHost(), 1));
-                    } else {
-                        nodes.add(new NodeOutput(node.getHost(), 2));
-                    }
-                }
+                nodes.add(new NodeOutput(node.getHost(), 2));
+                ipaddrs.add(node.getHost());
             }
 
             for(EndpointPair<Node> pair : graph.edges()) {
-                links.add(new LinkOutput(pair.nodeU().getHost(), pair.nodeV().getHost()));
+                if(ipaddrs.contains(pair.nodeU().getHost()) && ipaddrs.contains(pair.nodeV().getHost())) {
+                    links.add(new LinkOutput(pair.nodeU().getHost(), pair.nodeV().getHost()));
+                }
             }
 
+            logger.info("WRITING " + nodes.size() + " NODES TO FILE");
             this.nodes = new ArrayList<>(nodes);
+            this.links = new ArrayList<>(links);
+        }
+    }
+
+    private class OutputWithLocation {
+        private List<LocationOutput> nodes;
+        private List<LinkOutput> links;
+
+        private String addLocation(Map<String, LocationOutput> nodes, Node node) {
+            Triple<String, Double, Double> geoLoc = getGeo(node.getHost());
+            if(geoLoc == null) {
+                return null;
+            }
+            if (!nodes.containsKey(geoLoc.getLeft())) {
+                nodes.put(geoLoc.getLeft(), new LocationOutput(geoLoc.getLeft(), geoLoc.getMiddle(), geoLoc.getRight()));
+            }
+            nodes.get(geoLoc.getLeft()).addNode();
+            return geoLoc.getLeft();
+        }
+
+        private OutputWithLocation() throws IOException {
+            Map<String, LocationOutput> nodes = new HashMap<>();
+            Map<String, String> ipToLoc = new HashMap<>();
+            Set<LinkOutput> links = new HashSet<>();
+
+            for (Node node : Graphs.reachableNodes(graph, manager.getTable().getNode())) {
+                String loc = addLocation(nodes, node);
+                if(loc != null) {
+                    ipToLoc.put(node.getHost(), loc);
+                }
+            }
+            String loc = addLocation(nodes, manager.getTable().getNode());
+            ipToLoc.put(manager.getTable().getNode().getHost(), loc);
+
+            for(EndpointPair<Node> pair : graph.edges()) {
+                if(ipToLoc.containsKey(pair.nodeU().getHost()) && ipToLoc.containsValue(pair.nodeV().getHost())) {
+                    links.add(new LinkOutput(ipToLoc.get(pair.nodeU().getHost()),
+                            ipToLoc.get(pair.nodeV().getHost())));
+                }
+            }
+
+            logger.info("WRITING " + nodes.size() + " LOCATIONS TO FILE");
+            this.nodes = new ArrayList<>(nodes.values());
             this.links = new ArrayList<>(links);
         }
     }
@@ -310,6 +355,46 @@ public class CrawlerGraph extends Thread {
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
             NodeOutput that = (NodeOutput) o;
+            return Objects.equals(id, that.id);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(id);
+        }
+    }
+
+    private class LocationOutput {
+        private String id;
+        private String name;
+        private double latitude;
+        private double longitude;
+        private int group;
+        private int nodes;
+
+        public LocationOutput(String id, double latitude, double longitude) {
+            this.id = id;
+            this.name = "";
+            this.latitude = latitude;
+            this.longitude = longitude;
+            this.group = 2;
+            this.nodes = 0;
+        }
+
+        private void setGroup(int group) {
+            this.group = group;
+        }
+
+        private void addNode() {
+            nodes += 1;
+            this.name = id + " (" + nodes + " here)";
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            LocationOutput that = (LocationOutput) o;
             return Objects.equals(id, that.id);
         }
 
@@ -341,10 +426,6 @@ public class CrawlerGraph extends Thread {
         public int hashCode() {
             return source.hashCode() + target.hashCode();
         }
-    }
-
-    private class NodeSimpleOutput {
-
     }
 
     /*private class LocationOutput {
