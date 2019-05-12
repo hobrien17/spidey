@@ -336,12 +336,13 @@ public class CrawlerGraph extends Thread {
             Set<LinkOutput> links = new HashSet<>();
             Set<String> ipaddrs = new HashSet<>();
 
-            nodes.add(new NodeOutput(manager.getTable().getNode().getHost(), 1));
+            nodes.add(new NodeOutput(manager.homeNode.getHexId(),
+                    manager.homeNode.getHost() + ":" + manager.homeNode.getPort(), 1));
             for(Node node : graph.nodes()) {
                 //Triple<String, Double, Double> loc = getGeo(node.getHost());
                 //if(loc != null) {
                     //locOut.add(new LocationOutput(loc.getLeft(), loc.getMiddle(), loc.getRight()));
-                nodes.add(new NodeOutput(node.getHost(), 2));
+                nodes.add(new NodeOutput(node.getHexId(), node.getHost() + ":" + node.getPort(), 2));
                 ipaddrs.add(node.getHost());
             }
 
@@ -402,10 +403,14 @@ public class CrawlerGraph extends Thread {
 
     private class NodeOutput {
         private String id;
+        private String ip;
+        private String name;
         private int group;
 
-        public NodeOutput(String id, int group) {
+        public NodeOutput(String id, String ip, int group) {
             this.id = id;
+            this.ip = ip;
+            this.name = id + " (" + ip + ")";
             this.group = group;
         }
 
