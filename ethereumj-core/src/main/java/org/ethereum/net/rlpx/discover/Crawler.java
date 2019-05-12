@@ -106,9 +106,9 @@ public class Crawler extends Thread {
 						toAdd.addAll(closest);
 					}
 					
-					addToGraph(node.getHost(), node.getPort(), closest);
+					addToGraph(node.getHost().toString(), node.getPort(), closest);
 				} else {
-					manager.getNodeHandler(manager.getTable().getNode()).sendFindNode(node.getId());
+					manager.getNodeHandler(node).sendFindNode(myId);
 				}
 
                 try {

@@ -34,6 +34,7 @@ public class CrawlerGraph extends Thread {
 
     private NodeManager manager;
     private Set<Node> allNodes;
+    private Set<Node> toAdd;
     private MutableGraph<Node> graph;
     private int iters;
 
@@ -76,16 +77,20 @@ public class CrawlerGraph extends Thread {
     public void run() {
         int i = 0;
         while(true) {
-            try {
-                Thread.sleep(10);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+            for (Node node : allNodes) {
+                manager.getNodeHandler(manager.homeNode).sendFindNode(node.getId());
+
+                try {
+                    Thread.sleep(5); //take a breather to try to avoid overloading the network
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
 
-            discover();
-            /*if(i++ % WRITE_ITERS == 0) {
-                recursiveCrawl();
-            }*/
+            synchronized (lock) {
+                allNodes.addAll(toAdd);
+                toAdd = new HashSet<>();
+            }
         }
     }
 
@@ -100,7 +105,7 @@ public class CrawlerGraph extends Thread {
             toDiscover.add(entry.getNode());
         }
         for (Node node : toDiscover) {
-            manager.getNodeHandler(node).sendFindNode(node.getId());
+            manager.getNodeHandler(manager.homeNode).sendFindNode(node.getId());
         }
     }
 
@@ -133,43 +138,35 @@ public class CrawlerGraph extends Thread {
     }
 
     public void addNodes(DiscoveryEvent evt) {
-        updateClosest();
-        Node target = getNodeWithId(evt.getMessage().getNodeId());
+        Node target = getNodeWithId(((NeighborsMessage)evt.getMessage()).getNodeId());
         if(target == null) {
-            return; //unknown node
+            logger.warn("NULL NODE FOUND");
+            return;
         }
-
-        Set<Node> updates = new HashSet<>(allNodes);
-
-        if(!updates.contains(target)) {
-            updates.add(target);
-            graph.addNode(target);
-        } else {
-            removeEdges(target);
-        }
-        for(Node neighbour : ((NeighborsMessage)evt.getMessage()).getNodes()) {
-            if(!updates.contains(neighbour)) {
-                updates.add(neighbour);
-                graph.addNode(neighbour);
-            }
-			try {
-				graph.putEdge(target, neighbour);
-			} catch (IllegalArgumentException ex) { //catch self loop
-				continue;
-			}
-        }
+        Collection<Node> nodes = ((NeighborsMessage)evt.getMessage()).getNodes();
 
         synchronized (lock) {
-            allNodes.addAll(updates);
+            this.toAdd.addAll(nodes);
         }
 
-        if(iters++ % WRITE_ITERS == 0) {
+        for(Node neighbour : nodes) {
+            if(!graph.nodes().contains(neighbour)) {
+                graph.addNode(neighbour);
+            }
+            graph.putEdge(target, neighbour);
+        }
+
+        logger.info("" + graph.nodes().size());
+
+        if(iters % WRITE_ITERS == 0) {
+            logger.info("WRITING GRAPH TO FILE");
             try {
                 toFile();
-            } catch (IOException e) {
-                e.printStackTrace();
+            } catch (IOException ex) {
+                ex.printStackTrace();
             }
         }
+        iters++;
     }
 
     private Triple<String, Double, Double> getGeo(String ipaddr) {

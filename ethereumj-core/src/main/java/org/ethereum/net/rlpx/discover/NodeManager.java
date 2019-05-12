@@ -112,7 +112,7 @@ public class NodeManager implements Consumer<DiscoveryEvent>{
             getNodeHandler(node).getNodeStatistics().setPredefined(true);
         }
 
-        //CrawlerGraph.readDb();
+        CrawlerGraph.readDb();
     }
 
     public ScheduledExecutorService getPongTimer() {
@@ -284,11 +284,11 @@ public class NodeManager implements Consumer<DiscoveryEvent>{
                 break;
             case 4:
                 nodeHandler.handleNeighbours((NeighborsMessage) m);
-                if(Crawler.get() == null) {
-                    Crawler.setup(this, homeNode.getId());
-                    Crawler.get().start();
+                if(CrawlerGraph.get() == null) {
+                    CrawlerGraph.setup(this);
+                    CrawlerGraph.get().start();
                 }
-                Crawler.get().addNodes(discoveryEvent); //TODO: just adding this here so we know this has changed
+                CrawlerGraph.get().addNodes(discoveryEvent); //TODO: just adding this here so we know this has changed
                 break;
         }
     }
