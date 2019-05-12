@@ -40,6 +40,7 @@ public class CrawlerGraph extends Thread {
     private static RangeMap<Long, Triple<String, Double, Double>> geo;
 
     static final org.slf4j.Logger logger = LoggerFactory.getLogger("discover");
+    private static final Object lock = new Object();
 
     public CrawlerGraph(NodeManager manager) {
         this.manager = manager;
@@ -86,7 +87,10 @@ public class CrawlerGraph extends Thread {
 
     private void discover() {
         logger.info("Sending discovery");
-        Set<Node> toDiscover = new HashSet<>(allNodes);
+        Set<Node> toDiscover = new HashSet<>();
+        synchronized (lock) {
+            toDiscover.addAll(allNodes);
+        }
         for(NodeEntry entry : manager.getTable().getAllNodes()) {
             toDiscover.add(entry.getNode());
         }
@@ -124,21 +128,23 @@ public class CrawlerGraph extends Thread {
     }
 
     public void addNodes(DiscoveryEvent evt) {
-        logger.info("Adding nodes");
         updateClosest();
         Node target = getNodeWithId(evt.getMessage().getNodeId());
         if(target == null) {
             return; //unknown node
         }
-        if(!allNodes.contains(target)) {
-            allNodes.add(target);
+
+        Set<Node> updates = new HashSet<>(allNodes);
+
+        if(!updates.contains(target)) {
+            updates.add(target);
             graph.addNode(target);
         } else {
             removeEdges(target);
         }
         for(Node neighbour : ((NeighborsMessage)evt.getMessage()).getNodes()) {
-            if(!allNodes.contains(neighbour)) {
-                allNodes.add(neighbour);
+            if(!updates.contains(neighbour)) {
+                updates.add(neighbour);
                 graph.addNode(neighbour);
             }
 			try {
@@ -147,6 +153,11 @@ public class CrawlerGraph extends Thread {
 				continue;
 			}
         }
+
+        synchronized (lock) {
+            allNodes.addAll(updates);
+        }
+
         if(iters++ % WRITE_ITERS == 0) {
             try {
                 toFile();
