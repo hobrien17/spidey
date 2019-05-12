@@ -83,9 +83,9 @@ public class CrawlerGraph extends Thread {
             }
 
             discover();
-            if(i++ % WRITE_ITERS == 0) {
+            /*if(i++ % WRITE_ITERS == 0) {
                 recursiveCrawl();
-            }
+            }*/
         }
     }
 
