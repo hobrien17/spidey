@@ -36,7 +36,7 @@ public class CrawlerGraph extends Thread {
     private MutableGraph<Node> graph;
     private int iters;
 
-    private RangeMap<Long, Triple<String, Double, Double>> geo;
+    private static RangeMap<Long, Triple<String, Double, Double>> geo;
 
     static final org.slf4j.Logger logger = LoggerFactory.getLogger("discover");
 
@@ -49,7 +49,9 @@ public class CrawlerGraph extends Thread {
         this.graph.addNode(manager.getTable().getNode());
 
         iters = 1;
+    }
 
+    public static void readDb() {
         logger.info("Starting db retrieval (this will take a few minutes)");
         geo = Geolocator.getDatabase();
         logger.info("Finished db retrieval");
