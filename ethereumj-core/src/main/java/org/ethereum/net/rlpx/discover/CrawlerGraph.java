@@ -6,8 +6,6 @@ import com.google.common.graph.GraphBuilder;
 import com.google.common.graph.Graphs;
 import com.google.common.graph.MutableGraph;
 import com.google.gson.Gson;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
 import org.ethereum.net.rlpx.NeighborsMessage;
 import org.ethereum.net.rlpx.Node;
@@ -24,25 +22,32 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.*;
 
+/**
+ * Crawler singleton class
+ */
 public class CrawlerGraph extends Thread {
     private final static String NODE_FILE = "files/out/nodes.json";
-    private final static String LINKS_FILE = "files/out/links.json";
     private final static String LOCATION_FILE = "files/out/locations.json";
-    private final static int WRITE_ITERS = 100;
+    private final static int WRITE_ITERS = 100; //larger number = write less often, smaller number = write regularly
 
     private static CrawlerGraph instance = null; //singleton instance because I'm lazy
 
-    private NodeManager manager;
-    private Set<Node> allNodes;
-    private Set<Node> toAdd;
-    private MutableGraph<Node> graph;
-    private int iters;
+    private NodeManager manager; //used to do all the important networky things
+    private Set<Node> allNodes; //a set containing all the nodes in our graph
+    private Set<Node> toAdd; //a set containing the most recent nodes we have discovered
+    private MutableGraph<Node> graph; //the network graph
+    private int iters; //how many disovery messages we have processed
 
-    private static RangeMap<Long, Triple<String, Double, Double>> geo;
+    private static RangeMap<Long, Triple<String, Double, Double>> geo; //mapping of IP addresses to locations
 
     static final org.slf4j.Logger logger = LoggerFactory.getLogger("discover");
-    private static final Object lock = new Object();
+    private static final Object lock = new Object(); //thread safety is important
 
+    /**
+     * Constructs a new node crawler with the given node manager
+     *
+     * @param manager the node manager to do all the networky things
+     */
     public CrawlerGraph(NodeManager manager) {
         this.manager = manager;
         this.allNodes = new HashSet<>();
@@ -55,12 +60,22 @@ public class CrawlerGraph extends Thread {
         iters = 1;
     }
 
+    /**
+     * Load the geolocation database
+     *
+     * This usually takes a minute or two to run
+     */
     public static void readDb() {
         logger.info("Starting db retrieval (this will take a few minutes)");
         geo = Geolocator.getDatabase();
         logger.info("Finished db retrieval");
     }
 
+    /**
+     * Initialise the singleton instance
+     *
+     * @param manager the node manager that the instance will uses
+     */
     public static void setup(NodeManager manager) {
         instance = new CrawlerGraph(manager);
     }
@@ -74,6 +89,9 @@ public class CrawlerGraph extends Thread {
         return instance;
     }
 
+    /**
+     * Sends out periodic discovery messages
+     */
     @Override
     public void run() {
         int i = 0;
@@ -95,21 +113,12 @@ public class CrawlerGraph extends Thread {
         }
     }
 
-    private void discover() {
-        logger.info("Sending discovery");
-        Set<Node> toDiscover = new HashSet<>();
-        synchronized (lock) {
-            toDiscover.addAll(allNodes);
-            logger.info("Discovered: " + allNodes.size());
-        }
-        for(NodeEntry entry : manager.getTable().getAllNodes()) {
-            toDiscover.add(entry.getNode());
-        }
-        for (Node node : toDiscover) {
-            manager.getNodeHandler(manager.homeNode).sendFindNode(node.getId());
-        }
-    }
-
+    /**
+     * Get the node in the network with the given ID
+     *
+     * @param id the ID of the node to retrieve
+     * @return the node with that ID, or null if no node exists
+     */
     private Node getNodeWithId(byte[] id) {
         for(NodeEntry entry : manager.getTable().getAllNodes()) {
             if(Arrays.equals(entry.getNode().getId(), id)) {
@@ -119,13 +128,14 @@ public class CrawlerGraph extends Thread {
         return null;
     }
 
-    private void updateClosest() {
-        for(Node node : manager.getTable().getClosestNodes(manager.getTable().getNode().getId())) {
-			allNodes.add(node);
-            this.graph.putEdge(manager.getTable().getNode(), node);
-        }
-    }
-
+    /**
+     * Remove all edges from a node
+     *
+     * Currently unused as it tends to break the crawler
+     *
+     * @param node the node to remove all edges from
+     */
+    @Deprecated
     private void removeEdges(Node node) {
         Set<EndpointPair<Node>> toRemove = new HashSet<>();
         for(EndpointPair<Node> pair : graph.edges()) {
@@ -138,6 +148,11 @@ public class CrawlerGraph extends Thread {
         }
     }
 
+    /**
+     * Handle a neighbours message and add those neighbours to the graph
+     *
+     * @param evt the neighbours message to handle
+     */
     public void addNodes(DiscoveryEvent evt) {
         for(Node neighbour : manager.getTable().getClosestNodes(manager.homeNode.getId())) {
             if(!graph.nodes().contains(neighbour)) {
@@ -151,7 +166,6 @@ public class CrawlerGraph extends Thread {
 
         Node target = getNodeWithId(evt.getMessage().getNodeId());
         if(target == null) {
-            logger.warn("NULL NODE FOUND");
             return;
         }
         Collection<Node> nodes = ((NeighborsMessage)evt.getMessage()).getNodes();
@@ -167,7 +181,7 @@ public class CrawlerGraph extends Thread {
             this.toAdd.addAll(nodes);
         }
 
-        logger.info("" + graph.nodes().size());
+        //logger.info("" + graph.nodes().size()); //uncomment this to constantly view the number of nodes
 
         if(iters % WRITE_ITERS == 0) {
             logger.info("WRITING GRAPH TO FILE");
@@ -180,6 +194,12 @@ public class CrawlerGraph extends Thread {
         iters++;
     }
 
+    /**
+     * Get the geographic information of a node
+     *
+     * @param ipaddr the IP address to get the geographic information of
+     * @return a tuple containing the location's name, latitude, and longitude
+     */
     private Triple<String, Double, Double> getGeo(String ipaddr) {
         try {
             InetAddress i = Inet4Address.getByName(ipaddr);
@@ -195,91 +215,12 @@ public class CrawlerGraph extends Thread {
         return null;
     }
 
-    public void recursiveCrawl() {
-        logger.info("CRAWLING");
-
-        Queue<Node> toExplore = new LinkedList<>();
-        Set<Node> alreadyExplored = new HashSet<>();
-
-        toExplore.add(manager.getTable().getNode());
-        alreadyExplored.add(manager.getTable().getNode());
-
-        while(!toExplore.isEmpty()) {
-            Node next = toExplore.poll();
-            if(!graph.nodes().contains(next)) {
-                graph.addNode(next);
-            }
-            Collection<Node> neighbours = manager.getTable().getClosestNodes(next.getId());
-            for(Node neighbour : neighbours) {
-                if(!graph.nodes().contains(neighbour)) {
-                    graph.addNode(neighbour);
-                }
-
-                if(!alreadyExplored.contains(neighbour)) {
-                    toExplore.add(neighbour);
-                    graph.putEdge(neighbour, next);
-                }
-            }
-            alreadyExplored.add(next);
-        }
-
-        try {
-            toFile();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    /*public void recursiveCrawl() throws IOException {
-        Stack<Node> toExplore = new Stack<>();
-        Set<Node> alreadyExplored = new HashSet<>();
-        Set<Pair<Node, Node>> links = new HashSet<>();
-
-        toExplore.push(manager.getTable().getNode());
-        alreadyExplored.add(manager.getTable().getNode());
-
-        while(!toExplore.isEmpty()) {
-            Node next = toExplore.pop();
-            Collection<Node> neighbours = manager.getTable().getClosestNodes(next.getId());
-            for(Node neighbour : neighbours) {
-                if(!links.contains(new ImmutablePair<>(next, neighbour))) {
-                    links.add(new ImmutablePair<>(neighbour, next));
-                }
-                if(!alreadyExplored.contains(neighbour)) {
-                    toExplore.push(neighbour);
-                    alreadyExplored.add(neighbour);
-                }
-            }
-        }
-
-        Set<LocationOutput> locOut = new HashSet<>();
-        Set<NodeOutput> nodeOut = new HashSet<>();
-        Set<LinkOutput> linkOut = new HashSet<>();
-        Gson gson = new Gson();
-
-        for(Node node : alreadyExplored) {
-            Triple<String, Double, Double> loc = getGeo(node.getHost());
-            if(loc != null) {
-                locOut.add(new LocationOutput(loc.getLeft(), loc.getMiddle(), loc.getRight()));
-                nodeOut.add(new NodeOutput(node.getHost(), loc.getLeft()));
-            }
-        }
-        for(Pair<Node, Node> pair : links) {
-            linkOut.add(new LinkOutput(pair.getLeft().getHost(), pair.getRight().getHost()));
-        }
-
-        try (BufferedWriter nodeFile = new BufferedWriter(new FileWriter(NODE_FILE))) {
-            nodeFile.write(gson.toJson(new ArrayList<>(nodeOut)));
-        }
-        try (BufferedWriter locFile = new BufferedWriter(new FileWriter(LOCATION_FILE))) {
-            locFile.write(gson.toJson(new ArrayList<>(locOut)));
-        }
-        try (BufferedWriter linkFile = new BufferedWriter(new FileWriter(LINKS_FILE))) {
-            linkFile.write(gson.toJson(new ArrayList<>(linkOut)));
-        }
-
-    }*/
-
+    /**
+     * Get the shortest distance from our node to another node
+     *
+     * @param dest the node to get the distance to
+     * @return the shortest distance from our node to their node, or 100 if it is not reachable
+     */
     private int getHopsFromRoot(Node dest) {
         Queue<Node> toExplore = new LinkedList<>();
         Map<Node, Integer> distances = new HashMap<>();
@@ -302,32 +243,16 @@ public class CrawlerGraph extends Thread {
         return 100;
     }
 
+    /**
+     * Write the current graph to a file
+     *
+     * @throws IOException when file IO errors ocur
+     */
     private void toFile() throws IOException {
-        /*Set<LocationOutput> locOut = new HashSet<>();
-        Set<NodeOutput> nodeOut = new HashSet<>();
-        Set<LinkOutput> linkOut = new HashSet<>();*/
         Gson gson = new Gson();
-
-
-
-        /*for(Node node : graph.nodes()) {
-            Triple<String, Double, Double> loc = getGeo(node.getHost());
-            if(loc != null) {
-                locOut.add(new LocationOutput(loc.getLeft(), loc.getMiddle(), loc.getRight()));
-				if(Arrays.equals(node.getId(), manager.getTable().getNode().getId())) {
-					nodeOut.add(new NodeOutput(node.getHost(), loc.getLeft(), true));
-				} else {
-					nodeOut.add(new NodeOutput(node.getHost(), loc.getLeft()));
-				}
-            }
-        }
-        for(EndpointPair<Node> pair : graph.edges()) {
-            linkOut.add(new LinkOutput(pair.nodeU().getHost(), pair.nodeV().getHost()));
-        }*/
 
         Output out = new Output();
         OutputWithLocation locs = new OutputWithLocation();
-
 
         try (BufferedWriter nodeFile = new BufferedWriter(new FileWriter(NODE_FILE))) {
             nodeFile.write(gson.toJson(out));
@@ -335,25 +260,16 @@ public class CrawlerGraph extends Thread {
         try (BufferedWriter locFile = new BufferedWriter(new FileWriter(LOCATION_FILE))) {
             locFile.write(gson.toJson(locs));
         }
-        /*try (BufferedWriter locFile = new BufferedWriter(new FileWriter(LOCATION_FILE))) {
-            locFile.write(gson.toJson(new ArrayList<>(locOut)));
-        }
-        try (BufferedWriter linkFile = new BufferedWriter(new FileWriter(LINKS_FILE))) {
-            linkFile.write(gson.toJson(new ArrayList<>(linkOut)));
-        }*/
-
-        logger.info("NODE COUNT: " + allNodes.size());
-        logger.info("GRAPH: " + graph.nodes().size());
-        logger.info("LINKS: " + graph.edges().size());
-        //logger.info("OUTPUT GRAPH: " + nodeOut.size());
-        //logger.info("OUTPUT LINK: " + linkOut.size());
     }
 
+    /**
+     * Represents a simple JSON output containing nodes and links
+     */
     private class Output {
         private List<NodeOutput> nodes;
         private List<LinkOutput> links;
 
-        private Output() throws IOException {
+        private Output() {
             Set<NodeOutput> nodes = new HashSet<>();
             Set<LinkOutput> links = new HashSet<>();
             Set<String> hexIds = new HashSet<>();
@@ -361,9 +277,6 @@ public class CrawlerGraph extends Thread {
             nodes.add(new NodeOutput(manager.homeNode.getHexId(),
                     manager.homeNode.getHost() + ":" + manager.homeNode.getPort(), 1));
             for(Node node : graph.nodes()) {
-                //Triple<String, Double, Double> loc = getGeo(node.getHost());
-                //if(loc != null) {
-                    //locOut.add(new LocationOutput(loc.getLeft(), loc.getMiddle(), loc.getRight()));
                 nodes.add(new NodeOutput(node.getHexId(), node.getHost() + ":" + node.getPort(),
                         getHopsFromRoot(node) + 1));
                 hexIds.add(node.getHexId());
@@ -375,12 +288,15 @@ public class CrawlerGraph extends Thread {
                 }
             }
 
-            logger.info("WRITING " + nodes.size() + " NODES TO FILE");
+            logger.info("WRITING " + nodes.size() + " NODES & " + links.size() + " LINKS TO FILE");
             this.nodes = new ArrayList<>(nodes);
             this.links = new ArrayList<>(links);
         }
     }
 
+    /**
+     * Represents a condensed JSON output (nodes are mapped to locations)
+     */
     private class OutputWithLocation {
         private List<LocationOutput> nodes;
         private List<LinkOutput> links;
@@ -393,16 +309,16 @@ public class CrawlerGraph extends Thread {
             if (!nodes.containsKey(geoLoc.getLeft())) {
                 nodes.put(geoLoc.getLeft(), new LocationOutput(geoLoc.getLeft(), geoLoc.getMiddle(), geoLoc.getRight()));
             }
-            nodes.get(geoLoc.getLeft()).addNode();
+            nodes.get(geoLoc.getLeft()).addNode(node);
             return geoLoc.getLeft();
         }
 
-        private OutputWithLocation() throws IOException {
+        private OutputWithLocation() {
             Map<String, LocationOutput> nodes = new HashMap<>();
             Map<String, String> idToLoc = new HashMap<>();
             Set<LinkOutput> links = new HashSet<>();
 
-            for (Node node : Graphs.reachableNodes(graph, manager.homeNode)) {
+            for (Node node : graph.nodes()) {
                 String loc = addLocation(nodes, node);
                 if(loc != null) {
                     idToLoc.put(node.getHexId(), loc);
@@ -424,17 +340,18 @@ public class CrawlerGraph extends Thread {
         }
     }
 
+    /**
+     * Represents the JSON output of a single node
+     */
     private class NodeOutput {
         private String id;
         private String ip;
-        private String name;
-        private int group;
+        private int distance;
 
-        public NodeOutput(String id, String ip, int group) {
+        public NodeOutput(String id, String ip, int distance) {
             this.id = id;
             this.ip = ip;
-            this.name = id + " (" + ip + ")";
-            this.group = group;
+            this.distance = distance;
         }
 
         @Override
@@ -451,30 +368,27 @@ public class CrawlerGraph extends Thread {
         }
     }
 
+    /**
+     * Represents the JSON output of a single location
+     */
     private class LocationOutput {
         private String id;
-        private String name;
         private double latitude;
         private double longitude;
-        private int group;
-        private int nodes;
+        private int density;
+        private List<NodeOutput> nodes;
 
         public LocationOutput(String id, double latitude, double longitude) {
             this.id = id;
-            this.name = "";
             this.latitude = latitude;
             this.longitude = longitude;
-            this.group = 2;
-            this.nodes = 0;
+            this.nodes = new ArrayList<>();
+            this.density = 0;
         }
 
-        private void setGroup(int group) {
-            this.group = group;
-        }
-
-        private void addNode() {
-            nodes += 1;
-            this.name = id + " (" + nodes + " here)";
+        private void addNode(Node node) {
+            density += 1;
+            nodes.add(new NodeOutput(node.getHexId(), node.getHost() + ":" + node.getPort(), 1));
         }
 
         @Override
@@ -491,6 +405,9 @@ public class CrawlerGraph extends Thread {
         }
     }
 
+    /**
+     * Represents the JSON output of a single link
+     */
     private class LinkOutput {
         private String source;
         private String target;
@@ -514,56 +431,4 @@ public class CrawlerGraph extends Thread {
             return source.hashCode() + target.hashCode();
         }
     }
-
-    /*private class LocationOutput {
-        private String name;
-        private double latitude;
-        private double longitude;
-
-        public LocationOutput(String name, double latitude, double longitude) {
-            this.name = name;
-            this.latitude = latitude;
-            this.longitude = longitude;
-        }
-    }*/
-
-    /*private class NodeOutput {
-        private String ip;
-        private String location;
-		private boolean isRoot;
-
-        public NodeOutput(String ip, String location) {
-            this(ip, location, false);
-        }
-		
-		public NodeOutput(String ip, String location, boolean isRoot) {
-			this.ip = ip;
-            this.location = location;
-			this.isRoot = isRoot;
-		}
-    }
-
-    private class LinkOutput {
-        private String srcIp;
-        private String dstIp;
-
-        public LinkOutput(String srcIp, String dstIp) {
-            this.srcIp = srcIp;
-            this.dstIp = dstIp;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            LinkOutput that = (LinkOutput) o;
-            return Objects.equals(srcIp, that.srcIp) &&
-                    Objects.equals(dstIp, that.dstIp);
-        }
-
-        @Override
-        public int hashCode() {
-            return srcIp.hashCode() + dstIp.hashCode();
-        }
-    }*/
 }
