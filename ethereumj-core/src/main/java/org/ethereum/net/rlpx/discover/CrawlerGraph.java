@@ -27,7 +27,7 @@ public class CrawlerGraph extends Thread {
     private final static String NODE_FILE = "files/out/nodes.json";
     private final static String LINKS_FILE = "files/out/links.json";
     private final static String LOCATION_FILE = "files/out/locations.json";
-    private final static int WRITE_ITERS = 600;
+    private final static int WRITE_ITERS = 100;
 
     private static CrawlerGraph instance = null; //singleton instance because I'm lazy
 
@@ -74,7 +74,7 @@ public class CrawlerGraph extends Thread {
     public void run() {
         while(true) {
             try {
-                Thread.sleep(10000);
+                Thread.sleep(100);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -105,6 +105,7 @@ public class CrawlerGraph extends Thread {
 
     private void updateClosest() {
         for(Node node : manager.getTable().getClosestNodes(manager.getTable().getNode().getId())) {
+			allNodes.add(node);
             this.graph.putEdge(manager.getTable().getNode(), node);
         }
     }
@@ -139,7 +140,11 @@ public class CrawlerGraph extends Thread {
                 allNodes.add(neighbour);
                 graph.addNode(neighbour);
             }
-            graph.putEdge(target, neighbour);
+			try {
+				graph.putEdge(target, neighbour);
+			} catch (IllegalArgumentException ex) { //catch self loop
+				continue;
+			}
         }
         if(iters++ % WRITE_ITERS == 0) {
             try {
@@ -225,7 +230,11 @@ public class CrawlerGraph extends Thread {
             Triple<String, Double, Double> loc = getGeo(node.getHost());
             if(loc != null) {
                 locOut.add(new LocationOutput(loc.getLeft(), loc.getMiddle(), loc.getRight()));
-                nodeOut.add(new NodeOutput(node.getHost(), loc.getLeft()));
+				if(Arrays.equals(node.getId(), manager.getTable().getNode().getId())) {
+					nodeOut.add(new NodeOutput(node.getHost(), loc.getLeft(), true));
+				} else {
+					nodeOut.add(new NodeOutput(node.getHost(), loc.getLeft()));
+				}
             }
         }
         for(EndpointPair<Node> pair : graph.edges()) {
@@ -264,11 +273,17 @@ public class CrawlerGraph extends Thread {
     private class NodeOutput {
         private String ip;
         private String location;
+		private boolean isRoot;
 
         public NodeOutput(String ip, String location) {
-            this.ip = ip;
-            this.location = location;
+            this(ip, location, false);
         }
+		
+		public NodeOutput(String ip, String location, boolean isRoot) {
+			this.ip = ip;
+            this.location = location;
+			this.isRoot = isRoot;
+		}
     }
 
     private class LinkOutput {
