@@ -142,6 +142,7 @@ public class CrawlerGraph extends Thread {
         for(Node neighbour : manager.getTable().getClosestNodes(manager.homeNode.getId())) {
             if(!graph.nodes().contains(neighbour)) {
                 graph.addNode(neighbour);
+                graph.putEdge(manager.homeNode, neighbour);
                 synchronized (lock) {
                     toAdd.add(neighbour);
                 }
@@ -336,7 +337,7 @@ public class CrawlerGraph extends Thread {
             Set<String> ipaddrs = new HashSet<>();
 
             nodes.add(new NodeOutput(manager.getTable().getNode().getHost(), 1));
-            for(Node node : Graphs.reachableNodes(graph, manager.getTable().getNode())) {
+            for(Node node : graph.nodes()) {
                 //Triple<String, Double, Double> loc = getGeo(node.getHost());
                 //if(loc != null) {
                     //locOut.add(new LocationOutput(loc.getLeft(), loc.getMiddle(), loc.getRight()));
