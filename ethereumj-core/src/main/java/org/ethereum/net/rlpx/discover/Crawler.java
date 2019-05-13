@@ -14,6 +14,7 @@ import java.util.*;
 /**
  * No longer relevant - please see CralwerGraph
  */
+@Deprecated
 public class Crawler extends Thread {
     private static Crawler instance; //singleton instance because I'm lazy
 

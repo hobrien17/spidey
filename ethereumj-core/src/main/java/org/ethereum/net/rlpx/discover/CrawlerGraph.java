@@ -248,16 +248,17 @@ public class CrawlerGraph extends Thread {
     }
 
     /**
-     * Get the shortest distance from our node to another node
+     * Get the shortest distance from src node to dst node
      *
+     * @param src the node to get the distance from
      * @param dest the node to get the distance to
-     * @return the shortest distance from our node to their node, or 100 if it is not reachable
+     * @return the shortest distance from src node to dst node, or 9999 if it is not reachable
      */
-    private int getHopsFromRoot(Node dest) {
+    private int getHopsFrom(Node src, Node dest) {
         Queue<Node> toExplore = new LinkedList<>();
         Map<Node, Integer> distances = new HashMap<>();
-        distances.put(manager.homeNode, 0);
-        toExplore.add(manager.homeNode);
+        distances.put(src, 0);
+        toExplore.add(src);
 
         while (!toExplore.isEmpty()) {
             Node next = toExplore.poll();
@@ -272,7 +273,7 @@ public class CrawlerGraph extends Thread {
             }
         }
 
-        return 100;
+        return 9999;
     }
 
     /**
@@ -281,7 +282,50 @@ public class CrawlerGraph extends Thread {
      * @return a SQL query
      */
     private String getSql() {
-        return ""; //TODO implement this to transform graph state into SQL
+        StringBuilder sb = new StringBuilder();
+
+        Output out = new Output();
+        OutputWithLocation locs = new OutputWithLocation();
+        Map<String, Integer> locIds = new HashMap<>();
+        locIds.put("", -1);
+
+        sb.append("INSERT INTO mappy.EthereumLocation (loc, lat, long, name, density) VALUES\n");
+        for(int i = 0; i < locs.nodes.size(); i++) {
+            sb.append("(");
+            sb.append(i).append(", ");
+            LocationOutput loc = locs.nodes.get(i);
+            sb.append(loc.latitude).append(", ");
+            sb.append(loc.longitude).append(", ");
+            sb.append("'").append(loc.id).append("', ");
+            sb.append(loc.density).append("),\n");
+            locIds.put(loc.id, i);
+        }
+        sb.deleteCharAt(sb.lastIndexOf("\n"));
+        sb.deleteCharAt(sb.lastIndexOf(","));
+        sb.append(";\n");
+
+        sb.append("INSERT INTO mappy.EtheremNode (id, ip, loc) VALUES\n");
+        for(NodeOutput node : out.nodes) {
+            sb.append("(");
+            sb.append("'").append(node.id).append("', ");
+            sb.append("'").append(node.ip).append("', ");
+            sb.append(locIds.get(node.id)).append("),\n");
+        }
+        sb.deleteCharAt(sb.lastIndexOf("\n"));
+        sb.deleteCharAt(sb.lastIndexOf(","));
+        sb.append(";\n");
+
+        sb.append("INSERT INTO mappy.EthereumConnection (neighbour, node) VALUES\n");
+        for(LinkOutput link : out.links) {
+            sb.append("(");
+            sb.append("'").append(link.source).append("', ");
+            sb.append("'").append(link.target).append("')\n");
+        }
+        sb.deleteCharAt(sb.lastIndexOf("\n"));
+        sb.deleteCharAt(sb.lastIndexOf(","));
+        sb.append(";\n");
+
+        return sb.toString();
     }
 
     /**
@@ -331,17 +375,27 @@ public class CrawlerGraph extends Thread {
         private List<NodeOutput> nodes;
         private List<LinkOutput> links;
 
+        private void addNode(Set<NodeOutput> nodes, Set<String> hexIds, Node node) {
+            Triple<String, Double, Double> homeGeo = getGeo(node.getHost());
+            String geoName;
+            if(homeGeo == null) {
+                geoName = "";
+            } else {
+                geoName = homeGeo.getLeft();
+            }
+            nodes.add(new NodeOutput(node.getHexId(), node.getHost() + ":" + node.getPort(),
+                    geoName, getHopsFrom(manager.homeNode, node) + 1));
+            hexIds.add(node.getHexId());
+        }
+
         private Output() {
             Set<NodeOutput> nodes = new HashSet<>();
             Set<LinkOutput> links = new HashSet<>();
             Set<String> hexIds = new HashSet<>();
 
-            nodes.add(new NodeOutput(manager.homeNode.getHexId(),
-                    manager.homeNode.getHost() + ":" + manager.homeNode.getPort(), 1));
+            addNode(nodes, hexIds, manager.homeNode);
             for (Node node : graph.nodes()) {
-                nodes.add(new NodeOutput(node.getHexId(), node.getHost() + ":" + node.getPort(),
-                        getHopsFromRoot(node) + 1));
-                hexIds.add(node.getHexId());
+                addNode(nodes, hexIds, node);
             }
 
             for (EndpointPair<Node> pair : graph.edges()) {
@@ -408,11 +462,13 @@ public class CrawlerGraph extends Thread {
     private class NodeOutput {
         private String id;
         private String ip;
-        private int distance;
+        private String location;
+        private int distance; //distance from home node
 
-        public NodeOutput(String id, String ip, int distance) {
+        public NodeOutput(String id, String ip, String location, int distance) {
             this.id = id;
             this.ip = ip;
+            this.location = location;
             this.distance = distance;
         }
 
