@@ -112,7 +112,7 @@ public class NodeManager implements Consumer<DiscoveryEvent>{
             getNodeHandler(node).getNodeStatistics().setPredefined(true);
         }
 
-        CrawlerGraph.readDb();
+        CrawlerGraph.readGeoData();
     }
 
     public ScheduledExecutorService getPongTimer() {

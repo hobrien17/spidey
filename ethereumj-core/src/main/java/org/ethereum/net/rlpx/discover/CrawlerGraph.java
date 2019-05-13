@@ -11,14 +11,16 @@ import org.ethereum.net.rlpx.Node;
 import org.ethereum.net.rlpx.discover.table.NodeEntry;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.*;
 
 /**
@@ -27,18 +29,21 @@ import java.util.*;
 public class CrawlerGraph extends Thread {
     private final static String NODE_FILE = "files/out/nodes.json";
     private final static String LOCATION_FILE = "files/out/locations.json";
-    private final static int WRITE_ITERS = 100; //larger number = write less often, smaller number = write regularly
-
-    private static CrawlerGraph instance = null; //singleton instance because I'm lazy
+    private final static int WRITE_ITERS = 300; //larger number = write less often, smaller number = write regularly
 
     private NodeManager manager; //used to do all the important networky things
     private Set<Node> allNodes; //a set containing all the nodes in our graph
     private Set<Node> toAdd; //a set containing the most recent nodes we have discovered
     private MutableGraph<Node> graph; //the network graph
     private int iters; //how many disovery messages we have processed
-
     private static RangeMap<Long, Triple<String, Double, Double>> geo; //mapping of IP addresses to locations
 
+    private final static boolean DB_ENABLED = false; //change to true to do DB stuff
+    private final static String PASSWORD_FILE = "files/password.txt";
+    private Connection conn; //database connection
+    private String dbPassword; //password for the database
+
+    private static CrawlerGraph instance = null; //singleton instance because I'm lazy
     static final org.slf4j.Logger logger = LoggerFactory.getLogger("discover");
     private static final Object lock = new Object(); //thread safety is important
 
@@ -57,6 +62,28 @@ public class CrawlerGraph extends Thread {
         this.graph.addNode(manager.getTable().getNode());
 
         iters = 1;
+
+        if(DB_ENABLED) {
+            connectToDb();
+        }
+    }
+
+    private void connectToDb() {
+        try (BufferedReader reader = new BufferedReader(new FileReader(PASSWORD_FILE))) {
+            dbPassword = reader.readLine();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        try {
+            Class.forName("org.postgresql.Driver");
+            conn = DriverManager.getConnection("jdbc:postgresql://happymappy.braeweb..com:5432/happy",
+                    "postgres", dbPassword);
+
+        } catch (ClassNotFoundException | SQLException e) {
+            e.printStackTrace();
+            conn = null;
+        }
     }
 
     /**
@@ -64,7 +91,7 @@ public class CrawlerGraph extends Thread {
      * <p>
      * This usually takes a minute or two to run
      */
-    public static void readDb() {
+    public static void readGeoData() {
         logger.info("Starting db retrieval (this will take a few minutes)");
         geo = Geolocator.getDatabase();
         logger.info("Finished db retrieval");
@@ -173,7 +200,9 @@ public class CrawlerGraph extends Thread {
             if (!graph.nodes().contains(neighbour)) {
                 graph.addNode(neighbour);
             }
-            graph.putEdge(target, neighbour);
+            try {
+                graph.putEdge(target, neighbour);
+            } catch (IllegalArgumentException ex) {} //thrown when self loop occurs
         }
 
         synchronized (lock) {
@@ -184,10 +213,14 @@ public class CrawlerGraph extends Thread {
 
         if (iters % WRITE_ITERS == 0) {
             logger.info("WRITING GRAPH TO FILE");
-            try {
-                toFile();
-            } catch (IOException ex) {
-                ex.printStackTrace();
+            if(DB_ENABLED) {
+                toDb();
+            } else {
+                try {
+                    toFile();
+                } catch (IOException ex) {
+                    ex.printStackTrace();
+                }
             }
         }
         iters++;
@@ -240,6 +273,36 @@ public class CrawlerGraph extends Thread {
         }
 
         return 100;
+    }
+
+    /**
+     * Transforms the current graph state into a SQL INSERT query
+     *
+     * @return a SQL query
+     */
+    private String getSql() {
+        return ""; //TODO implement this to transform graph state into SQL
+    }
+
+    /**
+     * Write to database
+     *
+     * TODO: In progress
+     */
+    private void toDb() {
+        if(conn == null) {
+            logger.error("Cannot write to DB due to bad connection");
+        }
+
+        try {
+            Statement stmt = conn.createStatement();
+            String sql = getSql();
+            stmt.executeUpdate(sql);
+            stmt.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            logger.error("Cannot write to DB");
+        }
     }
 
     /**
