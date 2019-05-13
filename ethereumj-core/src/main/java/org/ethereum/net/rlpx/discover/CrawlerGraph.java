@@ -509,7 +509,7 @@ public class CrawlerGraph extends Thread {
 
         private void addNode(Node node) {
             density += 1;
-            nodes.add(new NodeOutput(node.getHexId(), node.getHost() + ":" + node.getPort(), 1));
+            nodes.add(new NodeOutput(node.getHexId(), node.getHost() + ":" + node.getPort(), id, 1));
         }
 
         @Override
