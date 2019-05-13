@@ -289,6 +289,9 @@ public class CrawlerGraph extends Thread {
         Map<String, Integer> locIds = new HashMap<>();
         locIds.put("", -1);
 
+        sb.append("DELETE FROM mappy.EthereumLocation;\n");
+        sb.append("DELETE FROM mappy.EthereumNode;\n");
+        sb.append("DELETE FROM mappy.EthereumConnection;\n");
         sb.append("INSERT INTO mappy.EthereumLocation (loc, lat, long, name, density) VALUES\n");
         for(int i = 0; i < locs.nodes.size(); i++) {
             sb.append("(");
