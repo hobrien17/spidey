@@ -141,8 +141,8 @@ public class UDPListener {
                     logger.info("Shutdown discovery UDPListener");
                     break;
                 }
-                logger.warn("UDP channel closed. Recreating after 5 sec pause...");
-                Thread.sleep(5000);
+                logger.warn("UDP channel closed. Recreating after 5 sec pause..."); //TODO I've hacked this to have virtually no pause
+                Thread.sleep(10); //TODO I've probably broken this but who cares
             }
         } catch (Exception e) {
             if (e instanceof BindException && e.getMessage().contains("Address already in use")) {

@@ -3,7 +3,6 @@ package org.ethereum.net.rlpx.discover;
 import com.google.common.collect.RangeMap;
 import com.google.common.graph.EndpointPair;
 import com.google.common.graph.GraphBuilder;
-import com.google.common.graph.Graphs;
 import com.google.common.graph.MutableGraph;
 import com.google.gson.Gson;
 import org.apache.commons.lang3.tuple.Triple;
@@ -62,7 +61,7 @@ public class CrawlerGraph extends Thread {
 
     /**
      * Load the geolocation database
-     *
+     * <p>
      * This usually takes a minute or two to run
      */
     public static void readDb() {
@@ -95,7 +94,7 @@ public class CrawlerGraph extends Thread {
     @Override
     public void run() {
         int i = 0;
-        while(true) {
+        while (true) {
             for (Node node : allNodes) {
                 manager.getNodeHandler(manager.homeNode).sendFindNode(node.getId());
 
@@ -120,8 +119,8 @@ public class CrawlerGraph extends Thread {
      * @return the node with that ID, or null if no node exists
      */
     private Node getNodeWithId(byte[] id) {
-        for(NodeEntry entry : manager.getTable().getAllNodes()) {
-            if(Arrays.equals(entry.getNode().getId(), id)) {
+        for (NodeEntry entry : manager.getTable().getAllNodes()) {
+            if (Arrays.equals(entry.getNode().getId(), id)) {
                 return entry.getNode();
             }
         }
@@ -130,7 +129,7 @@ public class CrawlerGraph extends Thread {
 
     /**
      * Remove all edges from a node
-     *
+     * <p>
      * Currently unused as it tends to break the crawler
      *
      * @param node the node to remove all edges from
@@ -138,12 +137,12 @@ public class CrawlerGraph extends Thread {
     @Deprecated
     private void removeEdges(Node node) {
         Set<EndpointPair<Node>> toRemove = new HashSet<>();
-        for(EndpointPair<Node> pair : graph.edges()) {
-            if(pair.nodeU().equals(node) || pair.nodeV().equals(node)) {
+        for (EndpointPair<Node> pair : graph.edges()) {
+            if (pair.nodeU().equals(node) || pair.nodeV().equals(node)) {
                 toRemove.add(pair);
             }
         }
-        for(EndpointPair<Node> pair : toRemove) {
+        for (EndpointPair<Node> pair : toRemove) {
             graph.removeEdge(pair.nodeU(), pair.nodeV());
         }
     }
@@ -154,8 +153,8 @@ public class CrawlerGraph extends Thread {
      * @param evt the neighbours message to handle
      */
     public void addNodes(DiscoveryEvent evt) {
-        for(Node neighbour : manager.getTable().getClosestNodes(manager.homeNode.getId())) {
-            if(!graph.nodes().contains(neighbour)) {
+        for (Node neighbour : manager.getTable().getClosestNodes(manager.homeNode.getId())) {
+            if (!graph.nodes().contains(neighbour)) {
                 graph.addNode(neighbour);
                 graph.putEdge(manager.homeNode, neighbour);
                 synchronized (lock) {
@@ -165,13 +164,13 @@ public class CrawlerGraph extends Thread {
         }
 
         Node target = getNodeWithId(evt.getMessage().getNodeId());
-        if(target == null) {
+        if (target == null) {
             return;
         }
-        Collection<Node> nodes = ((NeighborsMessage)evt.getMessage()).getNodes();
+        Collection<Node> nodes = ((NeighborsMessage) evt.getMessage()).getNodes();
 
-        for(Node neighbour : nodes) {
-            if(!graph.nodes().contains(neighbour)) {
+        for (Node neighbour : nodes) {
+            if (!graph.nodes().contains(neighbour)) {
                 graph.addNode(neighbour);
             }
             graph.putEdge(target, neighbour);
@@ -183,7 +182,7 @@ public class CrawlerGraph extends Thread {
 
         //logger.info("" + graph.nodes().size()); //uncomment this to constantly view the number of nodes
 
-        if(iters % WRITE_ITERS == 0) {
+        if (iters % WRITE_ITERS == 0) {
             logger.info("WRITING GRAPH TO FILE");
             try {
                 toFile();
@@ -204,7 +203,7 @@ public class CrawlerGraph extends Thread {
         try {
             InetAddress i = Inet4Address.getByName(ipaddr);
             ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES).order(ByteOrder.BIG_ENDIAN);
-            buffer.put(new byte[] { 0,0,0,0 });
+            buffer.put(new byte[]{0, 0, 0, 0});
             buffer.put(i.getAddress());
             buffer.position(0);
             long converted = buffer.getLong();
@@ -227,13 +226,13 @@ public class CrawlerGraph extends Thread {
         distances.put(manager.homeNode, 0);
         toExplore.add(manager.homeNode);
 
-        while(!toExplore.isEmpty()) {
+        while (!toExplore.isEmpty()) {
             Node next = toExplore.poll();
-            if(next.equals(dest)) {
+            if (next.equals(dest)) {
                 return distances.get(next);
             }
-            for(Node neighbour : graph.adjacentNodes(next)) {
-                if(distances.get(neighbour) == null) {
+            for (Node neighbour : graph.adjacentNodes(next)) {
+                if (distances.get(neighbour) == null) {
                     distances.put(neighbour, distances.get(next) + 1);
                     toExplore.add(neighbour);
                 }
@@ -276,14 +275,14 @@ public class CrawlerGraph extends Thread {
 
             nodes.add(new NodeOutput(manager.homeNode.getHexId(),
                     manager.homeNode.getHost() + ":" + manager.homeNode.getPort(), 1));
-            for(Node node : graph.nodes()) {
+            for (Node node : graph.nodes()) {
                 nodes.add(new NodeOutput(node.getHexId(), node.getHost() + ":" + node.getPort(),
                         getHopsFromRoot(node) + 1));
                 hexIds.add(node.getHexId());
             }
 
-            for(EndpointPair<Node> pair : graph.edges()) {
-                if(hexIds.contains(pair.nodeU().getHexId()) && hexIds.contains(pair.nodeV().getHexId())) {
+            for (EndpointPair<Node> pair : graph.edges()) {
+                if (hexIds.contains(pair.nodeU().getHexId()) && hexIds.contains(pair.nodeV().getHexId())) {
                     links.add(new LinkOutput(pair.nodeU().getHexId(), pair.nodeV().getHexId()));
                 }
             }
@@ -303,7 +302,7 @@ public class CrawlerGraph extends Thread {
 
         private String addLocation(Map<String, LocationOutput> nodes, Node node) {
             Triple<String, Double, Double> geoLoc = getGeo(node.getHost());
-            if(geoLoc == null) {
+            if (geoLoc == null) {
                 return null;
             }
             if (!nodes.containsKey(geoLoc.getLeft())) {
@@ -320,15 +319,15 @@ public class CrawlerGraph extends Thread {
 
             for (Node node : graph.nodes()) {
                 String loc = addLocation(nodes, node);
-                if(loc != null) {
+                if (loc != null) {
                     idToLoc.put(node.getHexId(), loc);
                 }
             }
             String loc = addLocation(nodes, manager.getTable().getNode());
             idToLoc.put(manager.homeNode.getHexId(), loc);
 
-            for(EndpointPair<Node> pair : graph.edges()) {
-                if(idToLoc.containsKey(pair.nodeU().getHexId()) && idToLoc.containsKey(pair.nodeV().getHexId())) {
+            for (EndpointPair<Node> pair : graph.edges()) {
+                if (idToLoc.containsKey(pair.nodeU().getHexId()) && idToLoc.containsKey(pair.nodeV().getHexId())) {
                     links.add(new LinkOutput(idToLoc.get(pair.nodeU().getHexId()),
                             idToLoc.get(pair.nodeV().getHexId())));
                 }
