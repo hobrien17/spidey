@@ -69,16 +69,16 @@ public class CrawlerGraph extends Thread {
     }
 
     private void connectToDb() {
-        try (BufferedReader reader = new BufferedReader(new FileReader(PASSWORD_FILE))) {
+        /*try (BufferedReader reader = new BufferedReader(new FileReader(PASSWORD_FILE))) {
             dbPassword = reader.readLine();
         } catch (IOException e) {
             e.printStackTrace();
-        }
+        }*/
 
         try {
             Class.forName("org.postgresql.Driver");
-            conn = DriverManager.getConnection("jdbc:postgresql://happymappy.braeweb.com:5432/happy",
-                    "postgres", dbPassword);
+            conn = DriverManager.getConnection("jdbc:postgresql://happymappy.braewebb.com:5432/happy",
+                    "postgres", "bVawU6etXvWwQgsR");
 
         } catch (ClassNotFoundException | SQLException e) {
             e.printStackTrace();
@@ -289,9 +289,10 @@ public class CrawlerGraph extends Thread {
         Map<String, Integer> locIds = new HashMap<>();
         locIds.put("", -1);
 
-        sb.append("DELETE FROM mappy.EthereumLocation;\n");
-        sb.append("DELETE FROM mappy.EthereumNode;\n");
         sb.append("DELETE FROM mappy.EthereumConnection;\n");
+		sb.append("DELETE FROM mappy.EthereumNode;\n");
+		sb.append("DELETE FROM mappy.EthereumLocation;\n");
+
         sb.append("INSERT INTO mappy.EthereumLocation (loc, lat, long, name, density) VALUES\n");
         for(int i = 0; i < locs.nodes.size(); i++) {
             sb.append("(");
@@ -307,12 +308,12 @@ public class CrawlerGraph extends Thread {
         sb.deleteCharAt(sb.lastIndexOf(","));
         sb.append(";\n");
 
-        sb.append("INSERT INTO mappy.EtheremNode (id, ip, loc) VALUES\n");
+        sb.append("INSERT INTO mappy.EthereumNode (id, ip, loc) VALUES\n");
         for(NodeOutput node : out.nodes) {
             sb.append("(");
             sb.append("'").append(node.id).append("', ");
             sb.append("'").append(node.ip).append("', ");
-            sb.append(locIds.get(node.id)).append("),\n");
+            sb.append(locIds.get(node.location)).append("),\n");
         }
         sb.deleteCharAt(sb.lastIndexOf("\n"));
         sb.deleteCharAt(sb.lastIndexOf(","));
@@ -322,12 +323,13 @@ public class CrawlerGraph extends Thread {
         for(LinkOutput link : out.links) {
             sb.append("(");
             sb.append("'").append(link.source).append("', ");
-            sb.append("'").append(link.target).append("')\n");
+            sb.append("'").append(link.target).append("'),\n");
         }
         sb.deleteCharAt(sb.lastIndexOf("\n"));
         sb.deleteCharAt(sb.lastIndexOf(","));
         sb.append(";\n");
 
+		logger.info(sb.toString());
         return sb.toString();
     }
 
