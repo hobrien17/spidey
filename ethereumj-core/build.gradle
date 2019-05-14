@@ -156,6 +156,7 @@ dependencies {
 
     // libraries used in crawler
     implementation 'com.google.code.gson:gson:2.8.5'
+    compile group: 'org.postgresql', name: 'postgresql', version: '42.2.5'
     // compile 'com.google.guava:guava:27.1-jre'
 
     testCompile "junit:junit:${junitVersion}"

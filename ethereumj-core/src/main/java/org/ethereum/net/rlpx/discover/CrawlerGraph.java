@@ -29,7 +29,7 @@ import java.util.*;
 public class CrawlerGraph extends Thread {
     private final static String NODE_FILE = "files/out/nodes.json";
     private final static String LOCATION_FILE = "files/out/locations.json";
-    private final static int WRITE_ITERS = 300; //larger number = write less often, smaller number = write regularly
+    private final static int WRITE_ITERS = 100; //larger number = write less often, smaller number = write regularly
 
     private NodeManager manager; //used to do all the important networky things
     private Set<Node> allNodes; //a set containing all the nodes in our graph
@@ -38,7 +38,7 @@ public class CrawlerGraph extends Thread {
     private int iters; //how many disovery messages we have processed
     private static RangeMap<Long, Triple<String, Double, Double>> geo; //mapping of IP addresses to locations
 
-    private final static boolean DB_ENABLED = false; //change to true to do DB stuff
+    private final static boolean DB_ENABLED = true; //change to true to do DB stuff
     private final static String PASSWORD_FILE = "files/password.txt";
     private Connection conn; //database connection
     private String dbPassword; //password for the database
