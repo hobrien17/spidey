@@ -77,7 +77,7 @@ public class CrawlerGraph extends Thread {
 
         try {
             Class.forName("org.postgresql.Driver");
-            conn = DriverManager.getConnection("jdbc:postgresql://happymappy.braeweb..com:5432/happy",
+            conn = DriverManager.getConnection("jdbc:postgresql://happymappy.braeweb.com:5432/happy",
                     "postgres", dbPassword);
 
         } catch (ClassNotFoundException | SQLException e) {
