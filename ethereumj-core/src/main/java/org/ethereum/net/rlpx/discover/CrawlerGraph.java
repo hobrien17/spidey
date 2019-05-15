@@ -399,7 +399,7 @@ public class CrawlerGraph extends Thread {
             Set<LinkOutput> links = new HashSet<>();
             Set<String> hexIds = new HashSet<>();
 
-            addNode(nodes, hexIds, manager.homeNode);
+            //addNode(nodes, hexIds, manager.homeNode);
             for (Node node : Graphs.reachableNodes(graph, manager.homeNode)) {
                 addNode(nodes, hexIds, node);
             }
@@ -446,8 +446,8 @@ public class CrawlerGraph extends Thread {
                     idToLoc.put(node.getHexId(), loc);
                 }
             }
-            String loc = addLocation(nodes, manager.getTable().getNode());
-            idToLoc.put(manager.homeNode.getHexId(), loc);
+            //String loc = addLocation(nodes, manager.getTable().getNode());
+            //idToLoc.put(manager.homeNode.getHexId(), loc);
 
             for (EndpointPair<Node> pair : graph.edges()) {
                 if (idToLoc.containsKey(pair.nodeU().getHexId()) && idToLoc.containsKey(pair.nodeV().getHexId())) {
