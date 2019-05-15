@@ -393,7 +393,7 @@ public class CrawlerGraph extends Thread {
                 geoName = homeGeo.getLeft();
             }
             nodes.add(new NodeOutput(node.getHexId(), node.getHost() + ":" + node.getPort(),
-                    geoName, getHopsFrom(manager.homeNode, node) + 1));
+                    geoName, 1));
             hexIds.add(node.getHexId());
         }
 
