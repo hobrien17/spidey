@@ -297,7 +297,7 @@ public class CrawlerGraph extends Thread {
             LocationOutput loc = locs.nodes.get(i);
             sb.append(loc.latitude).append(", ");
             sb.append(loc.longitude).append(", ");
-            sb.append("'").append(loc.id.replaceAll("'", "")).append("', ");
+            sb.append("'").append(loc.id).append("', ");
             sb.append(loc.density).append("),\n");
             locIds.put(loc.id, i);
         }

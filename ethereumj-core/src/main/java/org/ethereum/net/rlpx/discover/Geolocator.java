@@ -26,7 +26,7 @@ public class Geolocator {
                     Long endAddr = Long.parseLong(fields[1].replaceAll("\"", ""));
                     Double latitude = Double.parseDouble(fields[6].replaceAll("\"", ""));
                     Double longitude = Double.parseDouble(fields[7].replaceAll("\"", ""));
-                    String name = fields[5].replaceAll("\"", "") + " (" + fields[2].replaceAll("\"", "") + ")";
+                    String name = fields[5].replaceAll("\"", "").replaceAll("'", "") + " (" + fields[2].replaceAll("\"", "") + ")";
                     result.put(Range.closed(startAddr, endAddr), new ImmutableTriple<>(name, latitude, longitude));
                 } catch (NumberFormatException | IndexOutOfBoundsException ex) {
                     ex.printStackTrace();
