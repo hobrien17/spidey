@@ -3,6 +3,7 @@ package org.ethereum.net.rlpx.discover;
 import com.google.common.collect.RangeMap;
 import com.google.common.graph.EndpointPair;
 import com.google.common.graph.GraphBuilder;
+import com.google.common.graph.Graphs;
 import com.google.common.graph.MutableGraph;
 import com.google.gson.Gson;
 import org.apache.commons.lang3.tuple.Triple;
@@ -399,7 +400,7 @@ public class CrawlerGraph extends Thread {
             Set<String> hexIds = new HashSet<>();
 
             addNode(nodes, hexIds, manager.homeNode);
-            for (Node node : graph.nodes()) {
+            for (Node node : Graphs.reachableNodes(graph, manager.homeNode)) {
                 addNode(nodes, hexIds, node);
             }
 
@@ -439,7 +440,7 @@ public class CrawlerGraph extends Thread {
             Map<String, String> idToLoc = new HashMap<>();
             Set<LinkOutput> links = new HashSet<>();
 
-            for (Node node : graph.nodes()) {
+            for (Node node : Graphs.reachableNodes(graph, manager.homeNode)) {
                 String loc = addLocation(nodes, node);
                 if (loc != null) {
                     idToLoc.put(node.getHexId(), loc);
