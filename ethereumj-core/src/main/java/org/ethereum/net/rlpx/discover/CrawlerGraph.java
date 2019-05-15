@@ -63,10 +63,6 @@ public class CrawlerGraph extends Thread {
         this.graph.addNode(manager.getTable().getNode());
 
         iters = 1;
-
-        if(DB_ENABLED) {
-            connectToDb();
-        }
     }
 
     private void connectToDb() {
@@ -340,6 +336,8 @@ public class CrawlerGraph extends Thread {
      * TODO: In progress
      */
     private void toDb() {
+        connectToDb();
+
         if(conn == null) {
             logger.error("Cannot write to DB due to bad connection");
         }
@@ -352,6 +350,12 @@ public class CrawlerGraph extends Thread {
         } catch (SQLException e) {
             e.printStackTrace();
             logger.error("Cannot write to DB");
+        }
+
+        try {
+            conn.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
     }
 
