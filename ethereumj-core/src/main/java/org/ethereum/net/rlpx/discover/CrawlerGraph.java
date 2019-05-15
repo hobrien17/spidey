@@ -30,7 +30,7 @@ import java.util.*;
 public class CrawlerGraph extends Thread {
     private final static String NODE_FILE = "files/out/nodes.json";
     private final static String LOCATION_FILE = "files/out/locations.json";
-    private final static int WRITE_ITERS = 500; //larger number = write less often, smaller number = write regularly
+    private final static int WRITE_ITERS = 100; //larger number = write less often, smaller number = write regularly
 
     private NodeManager manager; //used to do all the important networky things
     private Set<Node> allNodes; //a set containing all the nodes in our graph
@@ -326,6 +326,7 @@ public class CrawlerGraph extends Thread {
         sb.deleteCharAt(sb.lastIndexOf(","));
         sb.append(";\n");
 
+        logger.info(sb.toString());
         return sb.toString();
     }
 
