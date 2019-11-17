@@ -1,3 +1,8 @@
+# Spidey
+This is a small project myself and a team of 4 others worked on to crawl and visualise the Ethereum P2P network using the EthereumJ client.
+
+The original ethereumJ documentation is below for reference.
+
 # Welcome to ethereumj
 
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/ethereum/ethereumj?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
